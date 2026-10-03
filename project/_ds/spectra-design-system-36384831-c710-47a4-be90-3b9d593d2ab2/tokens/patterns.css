@@ -1,0 +1,114 @@
+/* Spectra patterns — the chrome recipes both products share.
+   Every value here is lifted from the product stylesheets; do not round. */
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding-inline: 15px; border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 500; letter-spacing: -.13px;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  transition: color var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.btn-solid { background: var(--accent); color: var(--accent-fg); border-color: var(--accent) }
+.btn-solid:hover { background: #7d67f9; border-color: #8f7dfa }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--line-2) }
+.btn-ghost:hover { background: var(--bg-hover); border-color: var(--line-3) }
+.btn-quiet { background: transparent; color: var(--text-3); padding-inline: 8px }
+.btn-quiet:hover { color: var(--text) }
+.btn-sm { height: 30px; font-size: 12px; padding-inline: 11px }
+.btn-lg { height: 42px; font-size: 14px; padding-inline: 20px; border-radius: var(--r) }
+.btn:disabled { opacity: .4; cursor: not-allowed }
+
+/* ── Surfaces ───────────────────────────────────────────────────────── */
+.card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; max-width: 100% }
+.card-i { transition: border-color var(--t-slow) var(--ease), transform var(--t-slow) var(--ease), background-color var(--t-slow) var(--ease) }
+.card-i:hover { transform: translateY(-2px); border-color: var(--line-2); background: var(--bg-hover) }
+
+/* Figures: soft top-lit gradient inside a visible outline, faint violet cap.
+   Chrome only — padding stays with the element. */
+.stat-card { position: relative; border: 1px solid var(--line-2); border-radius: var(--app-r-lg); background: var(--surface-sheen); box-shadow: var(--shadow-inset-top) }
+.stat-card::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: var(--accent-cap) }
+/* On the paper chapter the sheen inverts — white glass on stone, no cap. */
+.band-light .stat-card { background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.55)); box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(12,13,16,.05) }
+.band-light .stat-card::before { background: none }
+.band-light .integ-chip { background: rgba(12,13,16,.03) }
+.band-light .integ-mark { background: rgba(12,13,16,.06) }
+
+/* The app card: solid #171717, corner sheen, hairline, inset top light.
+   NOT a tint — a premium dark UI gets depth from LIGHT, not colour wash. */
+.glass-card {
+  position: relative; overflow: hidden; border-radius: var(--app-r-xl);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface-2);
+  background-image: var(--surface-corner);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Plan cards — same chrome as .stat-card, featured tier lifted by an accent
+   ring rather than extra size. */
+.plan { position: relative; display: flex; flex-direction: column; height: 100%; padding: 22px 20px 20px; border-radius: var(--r-card); border: 1px solid var(--line-2); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.012)); box-shadow: inset 0 1px 0 rgba(255,255,255,.06) }
+.plan::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(70% 55% at 50% 0%, rgba(110,86,248,.08), transparent 72%) }
+.plan > * { position: relative }
+.plan.is-featured { border-color: var(--accent-line); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(110,86,248,.18), 0 18px 44px rgba(0,0,0,.35) }
+.plan.is-featured::before { background: radial-gradient(70% 55% at 50% 0%, rgba(110,86,248,.16), transparent 72%) }
+
+/* Browser frame — the product visual chrome. */
+.bframe { background: var(--bg-inset); border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-frame); min-width: 0; max-width: 100% }
+.bframe-glow { box-shadow: var(--shadow-frame-glow) }
+
+/* ── Chips + markers ────────────────────────────────────────────────── */
+.eyebrow-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 10px; border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,.05);
+  transition: border-color var(--t-slow) var(--ease), background-color var(--t-slow) var(--ease);
+}
+.eyebrow-chip:hover { border-color: var(--line-3) }
+.eyebrow-chip .t-label { color: var(--text-2) }
+
+/* Integration tiles — monochrome on purpose: six brand palettes in one strip
+   reads as a logo salad, and the section is about reach. */
+.integ-chip { display: inline-flex; align-items: center; gap: 9px; padding: 7px 12px 7px 7px; border-radius: 9px; border: 1px solid var(--line-2); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.012)); color: var(--text); transition: border-color .2s var(--ease), background .2s var(--ease) }
+.integ-chip:hover { border-color: var(--line-3); background: rgba(255,255,255,.05) }
+.integ-chip.is-soon { color: var(--text-4); background: none; border-style: dashed }
+.integ-mark { flex: 0 0 auto; width: 24px; height: 24px; border-radius: var(--app-r-sm); display: grid; place-content: center; background: rgba(255,255,255,.07); border: 1px solid var(--line-2); color: var(--text-2) }
+
+/* ── Floating pill nav (marketing) ──────────────────────────────────── */
+.nav-shell { padding: 12px 12px 0 }
+.nav-pill {
+  position: relative; overflow: hidden;
+  max-width: 1240px; margin-inline: auto; height: 60px;
+  display: flex; align-items: center; gap: 12px;
+  padding-inline: 18px 10px; border: 0; border-radius: var(--r-pill);
+  background:
+    radial-gradient(130% 100% at 16% 0%, rgba(255,255,255,.10), transparent 46%),
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,0) 42%),
+    rgba(15,16,21,.44);
+  backdrop-filter: blur(22px) saturate(1.7);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(0,0,0,.28), 0 10px 32px rgba(0,0,0,.35);
+  transition: height var(--t-slow) var(--ease), background-color var(--t-slow) var(--ease);
+}
+.nav-pill::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,.06) 52%, rgba(255,255,255,.14)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; z-index: 2 }
+.nav-l { font-size: 14px; letter-spacing: -.1px; color: var(--text-3); padding: 7px 12px; border-radius: var(--app-r-lg); transition: color var(--t) var(--ease), background-color var(--t) var(--ease) }
+.nav-l:hover { color: var(--text); background: rgba(255,255,255,.05) }
+.nav-sep { width: 1px; height: 22px; background: var(--line-2) }
+
+/* ── Section bands + ambient glow ───────────────────────────────────── */
+.band { position: relative; isolation: isolate }
+.band > * { position: relative; z-index: 1 }
+.band-1 { background: var(--bg) }
+.band-2 { background: linear-gradient(180deg, #15161B 0, #0F1013 520px, var(--bg) 1050px); border-top: 1px solid var(--line-2) }
+.band-3 { background: linear-gradient(180deg, #150E2B 0, #0F0A1C 520px, var(--bg) 1050px); border-top: 1px solid rgba(110,86,248,.2) }
+
+.glow-wrap { position: relative; isolation: isolate; overflow-x: clip }
+.glow { position: absolute; pointer-events: none; z-index: -1; border-radius: 50%; filter: blur(90px); animation: auraBreathe 14s ease-in-out infinite }
+.glow-a { top: -140px; left: -6%; width: 620px; height: 420px; background: var(--glow-violet) }
+.glow-b { top: 12%; right: -10%; width: 720px; height: 520px; animation-delay: -5s; background: radial-gradient(50% 50% at 50% 50%, rgba(110,86,248,.10), transparent 70%) }
+.glow-c { bottom: -160px; left: 34%; width: 760px; height: 460px; animation-delay: -9s; background: var(--glow-emerald) }
+
+/* The bookends — hero and closing CTA are the same room. */
+.edge-band { position: relative; overflow: hidden; isolation: isolate; background: radial-gradient(1180px 640px at 50% -40px, rgba(110,86,248,.16), transparent 70%), linear-gradient(180deg, #0E0F14 0%, #0A0B0E 78%, var(--bg) 100%) }
+.edge-rule::after { content: ''; position: absolute; left: 50%; translate: -50% 0; width: min(680px, 80%); height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .7 }

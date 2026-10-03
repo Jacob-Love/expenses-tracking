@@ -1,0 +1,33 @@
+/* Spectra motion.
+   Short and mechanical for UI state (.12–.16s), long and eased for entrances
+   (.6s). Backgrounds do not animate; the motion budget goes to the product
+   art. Everything respects prefers-reduced-motion. */
+:root {
+  --ease: cubic-bezier(.4, 0, .2, 1); /* @kind other */
+  --ease-out: cubic-bezier(.25, .46, .45, .94); /* @kind other */
+  --ease-enter: cubic-bezier(.25, 1, .5, 1); /* @kind other */
+  --t-fast: .12s; /* @kind other */
+  --t: .16s; /* @kind other */
+  --t-slow: .3s; /* @kind other */
+  --t-enter: .6s; /* @kind other */
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes maskUp { from { transform: translateY(105%) } to { transform: translateY(0) } }
+@keyframes caret { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+@keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+@keyframes pulseRing { 0%, 100% { box-shadow: 0 0 0 0 var(--ok-dim) } 50% { box-shadow: 0 0 0 5px transparent } }
+@keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .4 } }
+@keyframes auraBreathe { 0%, 100% { opacity: .85; transform: scale(1) } 50% { opacity: 1; transform: scale(1.07) } }
+@keyframes gridDriftT { to { transform: translate(64px, 64px) } }
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+@keyframes spin { to { transform: rotate(360deg) } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

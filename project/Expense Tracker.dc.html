@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/elevation.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/motion.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/base.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/tokens/patterns.css">
+  <link rel="stylesheet" href="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/styles.css">
+  <script src="_ds/spectra-design-system-36384831-c710-47a4-be90-3b9d593d2ab2/_ds_bundle.js"></script>
+  <script src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
+  <style>
+    html, body { margin:0; background:#0A0A0A; color:#EDEDED; font-family:'Inter Tight', system-ui, sans-serif; }
+    a { color:#818CF8; text-decoration:none } a:hover { color:#F7F8F8 }
+    input, select, button { font-family:inherit }
+    input:focus-visible, select:focus-visible, button:focus-visible { outline:2px solid #818CF8; outline-offset:2px; border-radius:6px }
+    ::placeholder { color:#62666D }
+    select option { background:#1F1F1F; color:#EDEDED }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:none } }
+  </style>
+</helmet>
+
+<div style="display:flex; min-height:100vh; background:var(--surface-0); color:var(--app-fg); font-family:var(--font-app); font-size:14px; line-height:20px; letter-spacing:-0.16px; position:relative">
+  <div style="position:fixed; inset:0; pointer-events:none; background:var(--page-lift)"></div>
+  <div style="position:fixed; inset:0; pointer-events:none; background:var(--page-vignette)"></div>
+
+  <!-- Sidebar -->
+  <aside style="width:{{ sidebarW }}px; flex-shrink:0; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; background:var(--surface-0); border-right:1px solid rgba(255,255,255,0.05); transition:width .3s cubic-bezier(.4,0,.2,1); overflow:hidden; z-index:2">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 16px 8px 24px; min-height:64px">
+      <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; align-items:baseline; gap:8px; white-space:nowrap">
+          <span style="font-size:16px; font-weight:600; letter-spacing:-0.01em; color:#fff">Ledger</span>
+          <span style="font-family:var(--font-mono-app); font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-4)">USD</span>
+        </div>
+      </sc-if>
+      <button onClick="{{ toggleSidebar }}" title="Toggle sidebar" style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; color:#6B7280; background:transparent; border:0; cursor:pointer; margin-left:auto; margin-right:auto">{{ ic.panel }}</button>
+    </div>
+
+    <nav style="display:flex; flex-direction:column; margin-top:16px; flex:1">
+      <x-import component-from-global-scope="SpectraDesignSystem_363848.SidebarNavItem" icon="{{ ic.overview }}" label="Overview" active="{{ isOverview }}" collapsed="{{ collapsed }}" onClick="{{ goOverview }}" hint-size="100%,44px"></x-import>
+      <x-import component-from-global-scope="SpectraDesignSystem_363848.SidebarNavItem" icon="{{ ic.expenses }}" label="Expenses" active="{{ isExpenses }}" collapsed="{{ collapsed }}" onClick="{{ goExpenses }}" hint-size="100%,44px"></x-import>
+      <x-import component-from-global-scope="SpectraDesignSystem_363848.SidebarNavItem" icon="{{ ic.subs }}" label="Subscriptions" active="{{ isSubs }}" collapsed="{{ collapsed }}" onClick="{{ goSubs }}" hint-size="100%,44px"></x-import>
+      <x-import component-from-global-scope="SpectraDesignSystem_363848.SidebarNavItem" icon="{{ ic.revenue }}" label="Revenue" active="{{ isRevenue }}" collapsed="{{ collapsed }}" onClick="{{ goRevenue }}" hint-size="100%,44px"></x-import>
+    </nav>
+
+    <button onClick="{{ openSettings }}" title="Model settings" style="display:flex; align-items:center; gap:12px; padding:12px 24px; border:0; background:transparent; color:#6B7280; cursor:pointer; font-size:14px; white-space:nowrap; text-align:left; justify-content:flex-start" style-hover="color:#fff">
+      <span style="display:inline-flex; flex-shrink:0">{{ ic2.settings }}</span>
+      <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><span style="display:grid; gap:1px"><span>Model</span><span style="font-size:11px; color:{{ modelStatusColor }}; font-family:var(--font-mono-app)">{{ modelStatus }}</span></span></sc-if>
+    </button>
+    <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:16px 24px 20px; border-top:1px solid rgba(255,255,255,0.05); display:grid; gap:10px">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px">
+          <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#4B5563; font-weight:600">Net / month</span>
+          <span style="font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:{{ netRunColor }}">{{ netRunLabel }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px">
+          <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#4B5563; font-weight:600">Entries</span>
+          <span style="font-size:13px; font-variant-numeric:tabular-nums; color:#9CA3AF">{{ entryCount }}</span>
+        </div>
+      </div>
+    </sc-if>
+  </aside>
+
+  <!-- Main -->
+  <main style="flex:1; min-width:0; padding:24px; position:relative; z-index:1">
+    <div style="max-width:1400px; margin:0 auto; display:grid; gap:20px">
+
+      <header style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+        <div>
+          <h1 style="margin:0; font-size:28px; line-height:34px; letter-spacing:-0.02em; font-weight:500; color:#fff">{{ pageTitle }} <span style="color:var(--text-3)">{{ pageSub }}</span></h1>
+          <p style="margin:4px 0 0; font-size:13px; color:#6B7280">{{ pageHint }}</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="ghost" icon="{{ ic.sparkles }}" onClick="{{ makeReport }}" disabled="{{ reportBusy }}" hint-size="140px,36px">{{ reportLabel }}</x-import>
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="ghost" icon="{{ ic.plus }}" onClick="{{ openAdd }}" hint-size="110px,36px">Full form</x-import>
+        </div>
+      </header>
+
+      <sc-if value="{{ reportOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:relative; border-radius:14px; border:1px solid rgba(255,255,255,0.1); background:var(--surface-2); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05); padding:20px 24px; display:grid; gap:12px; animation:fadeUp .3s cubic-bezier(.25,1,.5,1)">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px">
+            <div style="display:flex; align-items:baseline; gap:10px">
+              <h2 style="margin:0; font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.01em; color:#EDEDED">Monthly report</h2>
+              <span style="font-family:var(--font-mono-app); font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-4)">Written from your ledger · check the numbers before you act</span>
+            </div>
+            <button onClick="{{ closeReport }}" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:0; background:transparent; color:#6B7280; cursor:pointer" style-hover="color:#fff; background:rgba(255,255,255,0.06)">{{ ic.x }}</button>
+          </div>
+          <sc-if value="{{ reportBusy }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; gap:8px">
+              <div style="height:14px; width:70%; border-radius:4px; background:rgba(255,255,255,0.06)"></div>
+              <div style="height:14px; width:90%; border-radius:4px; background:rgba(255,255,255,0.06)"></div>
+              <div style="height:14px; width:55%; border-radius:4px; background:rgba(255,255,255,0.06)"></div>
+            </div>
+          </sc-if>
+          <p style="margin:0; white-space:pre-line; font-size:14px; line-height:22px; color:#D0D6E0; max-width:72ch; text-wrap:pretty">{{ reportText }}</p>
+        </div>
+      </sc-if>
+
+      <!-- Quick add: one line, Enter to log -->
+      <div style="display:grid; gap:6px">
+        <div style="display:flex; align-items:center; gap:10px; height:48px; padding:0 8px 0 16px; border-radius:10px; border:1px solid {{ quickBorder }}; background:var(--surface-2); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05); transition:border-color .16s">
+          <span style="color:#6B7280; display:inline-flex">{{ ic.zap }}</span>
+          <input value="{{ quick }}" onChange="{{ setQuick }}" onKeyDown="{{ quickKey }}" placeholder="Type it like you'd say it — “Design tool 24/mo”, “Contractor invoice 1800”, “+Retainer client 02 4500/mo”" style="flex:1; min-width:0; background:transparent; border:0; outline:none; color:#F3F4F6; font-size:15px">
+          <sc-if value="{{ quickHasPreview }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; white-space:nowrap">
+              <span style="font-family:var(--font-mono-app); font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:{{ qp.kindColor }}; background:{{ qp.kindBg }}">{{ qp.kind }}</span>
+              <span style="font-size:12px; color:#9CA3AF">{{ qp.category }}</span>
+              <span style="font-size:12px; color:#9CA3AF">· {{ qp.cadence }}</span>
+              <span style="font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:#fff; margin-left:4px">{{ qp.amount }}</span>
+            </div>
+          </sc-if>
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="solid" size="sm" onClick="{{ quickSubmit }}" disabled="{{ quickDisabled }}" hint-size="64px,30px">Log ↵</x-import>
+        </div>
+        <div style="display:flex; gap:12px; font-size:12px; color:#4B5563; padding-left:4px; flex-wrap:wrap">
+          <span>Amount anywhere · “/mo” or “/yr” makes it recurring · start with “+” for revenue · category is guessed from words like payroll, contractor, ads</span>
+          <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><span style="color:var(--ok)">{{ toast }}</span></sc-if>
+        </div>
+      </div>
+
+      <!-- ========== OVERVIEW ========== -->
+      <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+        <section data-screen-label="Overview" style="display:grid; gap:20px; animation:fadeUp .3s cubic-bezier(.25,1,.5,1)">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px">
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Recurring revenue / mo" value="{{ k.mrr }}" change-percent="{{ k.mrrDelta }}" prev-value="{{ k.mrrPrev }}" spark-data="{{ k.mrrSpark }}" breakdown="{{ k.mrrBreak }}" hint-size="100%,150px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Recurring costs / mo" value="{{ k.burn }}" change-percent="{{ k.burnDelta }}" prev-value="{{ k.burnPrev }}" invert-color="{{ true }}" spark-data="{{ k.burnSpark }}" breakdown="{{ k.burnBreak }}" hint-size="100%,150px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Net this month" value="{{ k.net }}" change-percent="{{ k.netDelta }}" prev-value="{{ k.netPrev }}" spark-data="{{ k.netSpark }}" breakdown="{{ k.netBreak }}" hint-size="100%,150px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Active subscriptions" value="{{ k.subs }}" change-percent="{{ k.subsDelta }}" neutral="{{ true }}" spark-data="{{ k.subsSpark }}" breakdown="{{ k.subsBreak }}" hint-size="100%,150px"></x-import>
+          </div>
+
+          <div style="display:grid; grid-template-columns:minmax(0, 2fr) minmax(280px, 1fr); gap:12px">
+            <!-- P&L chart -->
+            <div style="position:relative; overflow:hidden; border-radius:14px; border:1px solid rgba(255,255,255,0.06); background:var(--surface-2); background-image:radial-gradient(130% 130% at 0% 0%, rgba(255,255,255,0.05), transparent 55%); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05); padding:20px; min-width:0">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px">
+                <div style="display:flex; align-items:baseline; gap:10px">
+                  <h2 style="margin:0; font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.01em; color:#EDEDED">Profit &amp; loss</h2>
+                  <span style="font-size:12px; color:#6B7280">{{ chartRangeLabel }}</span>
+                </div>
+                <div style="display:flex; gap:16px; font-size:12px; color:#9CA3AF">
+                  <span style="display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:2px; background:var(--ok)"></span>Revenue <span style="color:#fff; font-variant-numeric:tabular-nums">{{ chartRevTotal }}</span></span>
+                  <span style="display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:2px; background:rgba(255,255,255,.28)"></span>Expenses <span style="color:#fff; font-variant-numeric:tabular-nums">{{ chartExpTotal }}</span></span>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; height:190px; align-items:stretch">
+                <sc-for list="{{ months }}" as="m" hint-placeholder-count="12">
+                  <div title="{{ m.tip }}" style="flex:1; min-width:0; display:flex; flex-direction:column; gap:6px">
+                    <div style="flex:1; display:flex; gap:3px; align-items:flex-end; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:0">
+                      <div style="flex:1; height:{{ m.revH }}%; min-height:2px; background:var(--ok); opacity:.85; border-radius:3px 3px 0 0; transition:height .3s cubic-bezier(.4,0,.2,1)"></div>
+                      <div style="flex:1; height:{{ m.expH }}%; min-height:2px; background:rgba(255,255,255,0.26); border-radius:3px 3px 0 0; transition:height .3s cubic-bezier(.4,0,.2,1)"></div>
+                    </div>
+                    <div style="font-family:var(--font-mono-app); font-size:10px; letter-spacing:0.6px; text-align:center; color:{{ m.labelColor }}; text-transform:uppercase">{{ m.label }}</div>
+                    <div style="font-size:11px; text-align:center; font-variant-numeric:tabular-nums; color:{{ m.netColor }}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ m.netLabel }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- Upcoming renewals -->
+            <div style="position:relative; overflow:hidden; border-radius:14px; border:1px solid rgba(255,255,255,0.06); background:var(--surface-2); background-image:radial-gradient(130% 130% at 0% 0%, rgba(255,255,255,0.05), transparent 55%); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05); padding:20px; min-width:0; display:flex; flex-direction:column">
+              <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:12px">
+                <h2 style="margin:0; font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.01em; color:#EDEDED">Upcoming renewals</h2>
+                <span style="font-size:12px; color:#6B7280">next 30 days · {{ renewalsTotal }}</span>
+              </div>
+              <sc-if value="{{ hasRenewals }}" hint-placeholder-val="{{ true }}">
+                <div style="display:grid">
+                  <sc-for list="{{ renewals }}" as="r" hint-placeholder-count="5">
+                    <div style="display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; padding:10px 0; border-top:1px solid rgba(255,255,255,0.05)">
+                      <div style="min-width:0">
+                        <div style="font-size:13px; color:#E5E7EB; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ r.name }}</div>
+                        <div style="font-size:11px; color:#6B7280; font-family:var(--font-mono-app)">{{ r.dateLabel }} · {{ r.cadence }}</div>
+                      </div>
+                      <div style="text-align:right">
+                        <div style="font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:{{ r.amountColor }}">{{ r.amountLabel }}</div>
+                        <span style="display:inline-block; font-family:var(--font-mono-app); font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:1px 6px; border-radius:999px; color:{{ r.toneColor }}; background:{{ r.toneBg }}">{{ r.daysLabel }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ noRenewals }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="SpectraDesignSystem_363848.EmptyState" icon="{{ ic.calendar }}" title="Nothing renews in the next 30 days" hint="Monthly and annual entries show up here as their charge date approaches." hint-size="100%,160px"></x-import>
+              </sc-if>
+            </div>
+          </div>
+
+          <!-- Recent activity -->
+          <div style="position:relative; overflow:hidden; border-radius:14px; border:1px solid rgba(255,255,255,0.06); background:var(--surface-2); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05)">
+            <div style="display:flex; align-items:baseline; gap:10px; padding:16px 20px 8px">
+              <h2 style="margin:0; font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.01em; color:#EDEDED">Recent</h2>
+              <span style="font-size:12px; color:#6B7280">last 8 entries by date</span>
+            </div>
+            <div style="overflow-x:auto">
+              <div style="min-width:620px">
+                <div style="display:grid; grid-template-columns:minmax(180px,2fr) 1fr 1fr 1fr 120px; gap:12px; padding:6px 20px; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#4B5563; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <span>Name</span><span>Category</span><span>Date</span><span>Type</span><span style="text-align:right">Amount</span>
+                </div>
+                <sc-for list="{{ recent }}" as="e" hint-placeholder-count="6">
+                  <div onClick="{{ e.onEdit }}" style="display:grid; grid-template-columns:minmax(180px,2fr) 1fr 1fr 1fr 120px; gap:12px; padding:10px 20px; align-items:center; border-bottom:1px solid rgba(255,255,255,0.04); cursor:pointer; transition:background-color .12s" style-hover="background:rgba(255,255,255,0.02)">
+                    <span style="display:flex; align-items:center; gap:10px; min-width:0"><span style="width:6px; height:6px; border-radius:50%; flex-shrink:0; background:{{ e.dotColor }}"></span><span style="color:#E5E7EB; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ e.name }}</span></span>
+                    <span style="color:#9CA3AF; font-size:13px">{{ e.category }}</span>
+                    <span style="color:#9CA3AF; font-size:12px; font-family:var(--font-mono-app)">{{ e.dateLabel }}</span>
+                    <span style="color:#9CA3AF; font-size:13px">{{ e.cadenceLabel }}</span>
+                    <span style="text-align:right; font-weight:600; font-variant-numeric:tabular-nums; color:{{ e.amountColor }}">{{ e.amountLabel }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- ========== EXPENSES ========== -->
+      <sc-if value="{{ isExpenses }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Expenses" style="display:grid; gap:16px; animation:fadeUp .3s cubic-bezier(.25,1,.5,1)">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px">
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Spent this month" value="{{ x.month }}" change-percent="{{ x.monthDelta }}" prev-value="{{ x.monthPrev }}" invert-color="{{ true }}" spark-data="{{ x.monthSpark }}" hint-size="100%,110px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Spent this year" value="{{ x.year }}" spark-data="{{ x.yearSpark }}" hint-size="100%,110px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Largest category" value="{{ x.topCat }}" prev-value="{{ x.topCatShare }}" hint-size="100%,110px"></x-import>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="5">
+              <button onClick="{{ c.onClick }}" style="height:30px; padding:0 12px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid {{ c.border }}; background:{{ c.bg }}; color:{{ c.color }}; transition:all .12s">{{ c.label }}</button>
+            </sc-for>
+            <span style="width:1px; height:20px; background:rgba(255,255,255,0.1); margin:0 4px"></span>
+            <sc-for list="{{ cadChips }}" as="c" hint-placeholder-count="3">
+              <button onClick="{{ c.onClick }}" style="height:30px; padding:0 12px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid {{ c.border }}; background:{{ c.bg }}; color:{{ c.color }}; transition:all .12s">{{ c.label }}</button>
+            </sc-for>
+            <span style="flex:1"></span>
+            <div style="display:flex; align-items:center; gap:8px; height:32px; padding:0 10px; border-radius:8px; background:var(--surface-3); border:1px solid rgba(255,255,255,0.06); min-width:200px">
+              <span style="color:#6B7280; display:inline-flex">{{ ic.search }}</span>
+              <input value="{{ search }}" onChange="{{ setSearch }}" placeholder="Search expenses" style="flex:1; background:transparent; border:0; outline:none; color:#D1D5DB; font-size:13px; min-width:0">
+            </div>
+          </div>
+
+          <div style="position:relative; overflow:hidden; border-radius:14px; border:1px solid rgba(255,255,255,0.06); background:var(--surface-2); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05)">
+            <div style="overflow-x:auto">
+              <div style="min-width:700px">
+                <div style="display:grid; grid-template-columns:minmax(180px,2fr) 1fr 1fr 1fr 120px 40px; gap:12px; padding:12px 20px 8px; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#4B5563; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <span>Name</span><span>Category</span><span>Date</span><span>Type</span><span style="text-align:right">Amount</span><span></span>
+                </div>
+                <sc-for list="{{ expenseRows }}" as="e" hint-placeholder-count="8">
+                  <div style="display:grid; grid-template-columns:minmax(180px,2fr) 1fr 1fr 1fr 120px 40px; gap:12px; padding:10px 20px; align-items:center; border-bottom:1px solid rgba(255,255,255,0.04); transition:background-color .12s" style-hover="background:rgba(255,255,255,0.02)">
+                    <span onClick="{{ e.onEdit }}" style="color:#E5E7EB; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer">{{ e.name }}</span>
+                    <span style="color:#9CA3AF; font-size:13px">{{ e.category }}</span>
+                    <span style="color:#9CA3AF; font-size:12px; font-family:var(--font-mono-app)">{{ e.dateLabel }}</span>
+                    <span style="color:#9CA3AF; font-size:13px">{{ e.cadenceLabel }}</span>
+                    <span style="text-align:right; font-weight:600; font-variant-numeric:tabular-nums; color:#EDEDED">{{ e.amountLabel }}</span>
+                    <button onClick="{{ e.onRemove }}" title="Delete" style="width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; border:0; background:transparent; color:#4B5563; cursor:pointer; justify-self:end" style-hover="color:#F87171; background:rgba(248,113,113,0.1)">{{ ic.trash }}</button>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noExpenseRows }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="SpectraDesignSystem_363848.EmptyState" icon="{{ ic.expenses }}" title="No expenses match" hint="Clear a filter, or add a one-time charge or subscription with Add entry." hint-size="100%,180px"></x-import>
+                </sc-if>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; font-size:12px; color:#6B7280">
+                  <span>{{ expenseRowCount }}</span>
+                  <span>Total <span style="color:#fff; font-weight:600; font-variant-numeric:tabular-nums; font-size:13px">{{ expenseRowTotal }}</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- ========== SUBSCRIPTIONS ========== -->
+      <sc-if value="{{ isSubs }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Subscriptions" style="display:grid; gap:16px; animation:fadeUp .3s cubic-bezier(.25,1,.5,1)">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px">
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Monthly commitment" value="{{ s.monthly }}" prev-value="{{ s.annualized }}" breakdown="{{ s.break }}" hint-size="100%,130px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Active" value="{{ s.active }}" prev-value="{{ s.pausedLabel }}" hint-size="100%,130px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Next 30 days" value="{{ s.next30 }}" prev-value="{{ s.next30Count }}" hint-size="100%,130px"></x-import>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px">
+            <sc-for list="{{ subRows }}" as="sub" hint-placeholder-count="6">
+              <div style="position:relative; border-radius:14px; border:1px solid rgba(255,255,255,0.06); background:var(--surface-2); background-image:radial-gradient(130% 130% at 0% 0%, rgba(255,255,255,0.05), transparent 55%); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05); padding:16px; display:flex; flex-direction:column; gap:12px; opacity:{{ sub.opacity }}; transition:opacity .2s, border-color .3s, transform .3s" style-hover="border-color:rgba(255,255,255,0.12); transform:translateY(-2px)">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px">
+                  <div style="min-width:0">
+                    <div onClick="{{ sub.onEdit }}" style="font-size:14px; font-weight:500; color:#F3F4F6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer">{{ sub.name }}</div>
+                    <div style="font-size:12px; color:#6B7280; margin-top:2px">{{ sub.category }} · {{ sub.cadenceLabel }}</div>
+                  </div>
+                  <x-import component-from-global-scope="SpectraDesignSystem_363848.Toggle" on="{{ sub.active }}" onToggle="{{ sub.onToggle }}" label="Active" hint-size="32px,18px"></x-import>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:8px">
+                  <span style="font-size:24px; line-height:28px; font-weight:700; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; color:#fff">{{ sub.amountLabel }}</span>
+                  <span style="font-size:12px; color:#6B7280">{{ sub.per }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05)">
+                  <span style="font-size:11px; font-family:var(--font-mono-app); color:{{ sub.nextColor }}">{{ sub.nextLabel }}</span>
+                  <button onClick="{{ sub.onRemove }}" title="Delete" style="width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; border:0; background:transparent; color:#4B5563; cursor:pointer" style-hover="color:#F87171; background:rgba(248,113,113,0.1)">{{ ic.trash }}</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ noSubs }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.EmptyState" icon="{{ ic.subs }}" title="No subscriptions yet" hint="Add an expense with a monthly or annual cadence and it lands here with its renewal date." size="page" hint-size="100%,240px"></x-import>
+          </sc-if>
+        </section>
+      </sc-if>
+
+      <!-- ========== REVENUE ========== -->
+      <sc-if value="{{ isRevenue }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Revenue" style="display:grid; gap:16px; animation:fadeUp .3s cubic-bezier(.25,1,.5,1)">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px">
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Recurring revenue / mo" value="{{ k.mrr }}" change-percent="{{ k.mrrDelta }}" prev-value="{{ k.mrrPrev }}" spark-data="{{ k.mrrSpark }}" hint-size="100%,110px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Earned this month" value="{{ rv.month }}" change-percent="{{ rv.monthDelta }}" prev-value="{{ rv.monthPrev }}" spark-data="{{ rv.monthSpark }}" hint-size="100%,110px"></x-import>
+            <x-import component-from-global-scope="SpectraDesignSystem_363848.KpiCard" label="Earned this year" value="{{ rv.year }}" prev-value="{{ rv.yearSplit }}" spark-data="{{ rv.yearSpark }}" hint-size="100%,110px"></x-import>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+            <sc-for list="{{ revChips }}" as="c" hint-placeholder-count="3">
+              <button onClick="{{ c.onClick }}" style="height:30px; padding:0 12px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid {{ c.border }}; background:{{ c.bg }}; color:{{ c.color }}; transition:all .12s">{{ c.label }}</button>
+            </sc-for>
+          </div>
+
+          <div style="position:relative; overflow:hidden; border-radius:14px; border:1px solid rgba(255,255,255,0.06); background:var(--surface-2); box-shadow:inset 0 1px 0 0 rgba(255,255,255,0.05)">
+            <div style="overflow-x:auto">
+              <div style="min-width:700px">
+                <div style="display:grid; grid-template-columns:minmax(180px,2fr) 1fr 1fr 1fr 120px 40px; gap:12px; padding:12px 20px 8px; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#4B5563; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <span>Source</span><span>Category</span><span>Date</span><span>Type</span><span style="text-align:right">Amount</span><span></span>
+                </div>
+                <sc-for list="{{ revenueRows }}" as="e" hint-placeholder-count="6">
+                  <div style="display:grid; grid-template-columns:minmax(180px,2fr) 1fr 1fr 1fr 120px 40px; gap:12px; padding:10px 20px; align-items:center; border-bottom:1px solid rgba(255,255,255,0.04); transition:background-color .12s" style-hover="background:rgba(255,255,255,0.02)">
+                    <span onClick="{{ e.onEdit }}" style="display:flex; align-items:center; gap:10px; min-width:0; cursor:pointer"><span style="color:#E5E7EB; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ e.name }}</span><sc-if value="{{ e.paused }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--font-mono-app); font-size:10px; letter-spacing:1px; color:var(--text-4); border:1px solid rgba(255,255,255,0.1); border-radius:999px; padding:0 6px">PAUSED</span></sc-if></span>
+                    <span style="color:#9CA3AF; font-size:13px">{{ e.category }}</span>
+                    <span style="color:#9CA3AF; font-size:12px; font-family:var(--font-mono-app)">{{ e.dateLabel }}</span>
+                    <span style="color:#9CA3AF; font-size:13px">{{ e.cadenceLabel }}</span>
+                    <span style="text-align:right; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ok)">{{ e.amountLabel }}</span>
+                    <button onClick="{{ e.onRemove }}" title="Delete" style="width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; border:0; background:transparent; color:#4B5563; cursor:pointer; justify-self:end" style-hover="color:#F87171; background:rgba(248,113,113,0.1)">{{ ic.trash }}</button>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noRevenueRows }}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="SpectraDesignSystem_363848.EmptyState" icon="{{ ic.revenue }}" title="No revenue recorded" hint="Add a retainer, a project invoice, or product sales with Add entry." hint-size="100%,180px"></x-import>
+                </sc-if>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; font-size:12px; color:#6B7280">
+                  <span>{{ revenueRowCount }}</span>
+                  <span>Total <span style="color:#fff; font-weight:600; font-variant-numeric:tabular-nums; font-size:13px">{{ revenueRowTotal }}</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <!-- ========== MODEL SETTINGS ========== -->
+  <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSettings }}" style="position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:24px">
+      <div onClick="{{ stop }}" style="width:100%; max-width:460px; border-radius:14px; border:1px solid rgba(255,255,255,0.1); background:var(--surface-3); box-shadow:0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.06); padding:24px; display:grid; gap:16px; animation:fadeUp .2s cubic-bezier(.25,1,.5,1)">
+        <div style="display:flex; align-items:center; justify-content:space-between">
+          <h2 style="margin:0; font-size:18px; font-weight:600; letter-spacing:-0.01em; color:#fff">Model</h2>
+          <button onClick="{{ closeSettings }}" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:0; background:transparent; color:#6B7280; cursor:pointer" style-hover="color:#fff; background:rgba(255,255,255,0.06)">{{ ic.x }}</button>
+        </div>
+        <p style="margin:0; font-size:13px; line-height:20px; color:#9CA3AF">Gemini categorizes anything the rules can't place and writes the monthly report. The key stays in this browser — it is never sent anywhere except Google. Model: <span style="font-family:var(--font-mono-app); color:#D0D6E0">{{ geminiModel }}</span>.</p>
+        <label style="display:grid; gap:6px">
+          <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#6B7280; font-weight:600">Gemini API key</span>
+          <input type="password" value="{{ keyDraft }}" onChange="{{ setKeyDraft }}" placeholder="AIza…" autoComplete="off" style="height:38px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:var(--surface-4); color:#F3F4F6; font-size:14px; outline:none; font-family:var(--font-mono-app)">
+          <span style="font-size:12px; color:#6B7280">Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Leave empty to remove.</span>
+        </label>
+        <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:4px">
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="ghost" onClick="{{ closeSettings }}" hint-size="80px,36px">Cancel</x-import>
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="solid" onClick="{{ saveKey }}" hint-size="80px,36px">Save</x-import>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ========== ADD / EDIT MODAL ========== -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:24px">
+      <div onClick="{{ stop }}" style="width:100%; max-width:460px; border-radius:14px; border:1px solid rgba(255,255,255,0.1); background:var(--surface-3); box-shadow:0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.06); padding:24px; display:grid; gap:16px; animation:fadeUp .2s cubic-bezier(.25,1,.5,1)">
+        <div style="display:flex; align-items:center; justify-content:space-between">
+          <h2 style="margin:0; font-size:18px; font-weight:600; letter-spacing:-0.01em; color:#fff">{{ modalTitle }}</h2>
+          <button onClick="{{ closeModal }}" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:0; background:transparent; color:#6B7280; cursor:pointer" style-hover="color:#fff; background:rgba(255,255,255,0.06)">{{ ic.x }}</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:8px; background:var(--surface-1)">
+          <sc-for list="{{ kindSeg }}" as="o" hint-placeholder-count="2">
+            <button onClick="{{ o.onClick }}" style="height:32px; border-radius:6px; border:0; font-size:13px; font-weight:500; cursor:pointer; background:{{ o.bg }}; color:{{ o.color }}; transition:all .12s">{{ o.label }}</button>
+          </sc-for>
+        </div>
+
+        <label style="display:grid; gap:6px">
+          <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#6B7280; font-weight:600">{{ nameLabel }}</span>
+          <input value="{{ form.name }}" onChange="{{ setName }}" placeholder="{{ namePlaceholder }}" style="height:38px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:var(--surface-4); color:#F3F4F6; font-size:14px; outline:none">
+        </label>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+          <label style="display:grid; gap:6px">
+            <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#6B7280; font-weight:600">Amount (USD)</span>
+            <input value="{{ form.amount }}" onChange="{{ setAmount }}" inputMode="decimal" placeholder="0.00" style="height:38px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:var(--surface-4); color:#F3F4F6; font-size:14px; outline:none; font-variant-numeric:tabular-nums">
+          </label>
+          <div style="display:grid; gap:6px">
+            <div style="display:flex; justify-content:space-between; align-items:baseline">
+              <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#6B7280; font-weight:600">Category</span>
+              <sc-if value="{{ newCatOpen }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cancelNewCat }}" style="border:0; background:transparent; padding:0; font-size:12px; color:#6B7280; cursor:pointer" style-hover="color:#fff">Cancel</button></sc-if>
+            </div>
+            <sc-if value="{{ newCatOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; gap:6px">
+                <input ref="{{ newCatRef }}" value="{{ newCat }}" onChange="{{ setNewCat }}" onKeyDown="{{ newCatKey }}" placeholder="e.g. Rent" style="flex:1; min-width:0; height:38px; padding:0 12px; border-radius:8px; border:1px solid rgba(99,102,241,0.5); background:var(--surface-4); color:#F3F4F6; font-size:14px; outline:none">
+                <button onClick="{{ addCategory }}" style="height:38px; padding:0 12px; border-radius:8px; border:0; background:var(--primary); color:#fff; font-size:13px; font-weight:500; cursor:pointer">Add</button>
+              </div>
+            </sc-if>
+            <select value="{{ form.category }}" onChange="{{ setCategory }}" style="height:38px; padding:0 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:var(--surface-4); color:#F3F4F6; font-size:14px; outline:none">
+              <sc-for list="{{ categoryOptions }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+            </select>
+            <button onClick="{{ openNewCat }}" style="justify-self:start; border:0; background:transparent; padding:0; font-size:12px; color:#818CF8; cursor:pointer" style-hover="color:#fff">+ New category</button>
+          </div>
+        </div>
+
+        <div style="display:grid; gap:6px">
+          <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#6B7280; font-weight:600">Billing</span>
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px">
+            <sc-for list="{{ cadSeg }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.onClick }}" style="height:34px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; border:1px solid {{ o.border }}; background:{{ o.bg }}; color:{{ o.color }}; transition:all .12s">{{ o.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <label style="display:grid; gap:6px">
+          <span style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:#6B7280; font-weight:600">{{ dateLabel }}</span>
+          <input type="date" value="{{ form.date }}" onChange="{{ setDate }}" style="height:38px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:var(--surface-4); color:#F3F4F6; font-size:14px; outline:none; color-scheme:dark">
+          <span style="font-size:12px; color:#6B7280">{{ dateHint }}</span>
+        </label>
+
+        <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:13px; color:#F87171; padding:8px 12px; border-radius:8px; background:rgba(248,113,113,0.1)">{{ formError }}</div>
+        </sc-if>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:4px">
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="ghost" onClick="{{ closeModal }}" hint-size="80px,36px">Cancel</x-import>
+          <x-import component-from-global-scope="SpectraDesignSystem_363848.Button" variant="solid" onClick="{{ submitForm }}" hint-size="100px,36px">{{ submitLabel }}</x-import>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const KEY = 'ledger-entries-v1';
+const EXP_CATS = ['Payroll', 'Contractors', 'Software', 'Ad spend'];
+const REV_CATS = ['Retainer', 'Project', 'Product'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = (s) => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const addMonths = (d, n) => { const r = new Date(d.getFullYear(), d.getMonth()+n, 1); r.setDate(Math.min(d.getDate(), new Date(r.getFullYear(), r.getMonth()+1, 0).getDate())); return r; };
+const money = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const money2 = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const monthly = (e) => e.cadence === 'monthly' ? e.amount : e.cadence === 'annual' ? e.amount / 12 : 0;
+const pct = (cur, prev) => prev ? Math.round(((cur - prev) / Math.abs(prev)) * 100) : null;
+const dateLabel = (s) => { const d = parse(s); return `${MON[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()}`; };
+const shortDate = (d) => `${MON[d.getMonth()]} ${pad(d.getDate())}`;
+const CAD_LABEL = { once: 'One-time', monthly: 'Monthly', annual: 'Annual' };
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+function icon(name, size) {
+  const lib = window.lucide && window.lucide.icons;
+  const node = lib && lib[name.split('-').map(p => p[0].toUpperCase() + p.slice(1)).join('')];
+  const kids = Array.isArray(node) ? (typeof node[0] === 'string' && Array.isArray(node[2]) ? node[2] : node) : [];
+  return React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', style: { flexShrink: 0 } },
+    kids.map(([tag, attrs], i) => React.createElement(tag, { key: i, ...attrs })));
+}
+
+function seed() {
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  const d = (mo, day) => iso(new Date(y, m + mo, day));
+  return [
+    { id: uid(), kind: 'expense', name: 'Design tool — team seats', amount: 45, category: 'Software', cadence: 'monthly', date: d(-9, 4), active: true },
+    { id: uid(), kind: 'expense', name: 'Cloud hosting', amount: 212, category: 'Software', cadence: 'monthly', date: d(-11, 1), active: true },
+    { id: uid(), kind: 'expense', name: 'Email + docs suite', amount: 86, category: 'Software', cadence: 'monthly', date: d(-14, 12), active: true },
+    { id: uid(), kind: 'expense', name: 'Analytics platform', amount: 1188, category: 'Software', cadence: 'annual', date: d(-11, 18), active: true },
+    { id: uid(), kind: 'expense', name: 'Accounting software', amount: 30, category: 'Software', cadence: 'monthly', date: d(-6, 22), active: true },
+    { id: uid(), kind: 'expense', name: 'Password manager', amount: 8, category: 'Software', cadence: 'monthly', date: d(-5, 9), active: false },
+    { id: uid(), kind: 'expense', name: 'Payroll — 3 FTE', amount: 21400, category: 'Payroll', cadence: 'monthly', date: d(-10, 28), active: true },
+    { id: uid(), kind: 'expense', name: 'Contractor — dev sprint', amount: 4800, category: 'Contractors', cadence: 'monthly', date: d(-4, 15), active: true },
+    { id: uid(), kind: 'expense', name: 'Contractor — video edit', amount: 1250, category: 'Contractors', cadence: 'once', date: d(0, 2), active: true },
+    { id: uid(), kind: 'expense', name: 'Meta ads — Sep', amount: 6420, category: 'Ad spend', cadence: 'once', date: d(-1, 30), active: true },
+    { id: uid(), kind: 'expense', name: 'Meta ads — Aug', amount: 5870, category: 'Ad spend', cadence: 'once', date: d(-2, 31), active: true },
+    { id: uid(), kind: 'expense', name: 'Meta ads — Jul', amount: 5100, category: 'Ad spend', cadence: 'once', date: d(-3, 31), active: true },
+    { id: uid(), kind: 'expense', name: 'Google ads — Sep', amount: 1900, category: 'Ad spend', cadence: 'once', date: d(-1, 30), active: true },
+    { id: uid(), kind: 'expense', name: 'Conference tickets', amount: 1480, category: 'Contractors', cadence: 'once', date: d(-2, 11), active: true },
+    { id: uid(), kind: 'revenue', name: 'Retainer — Client 01', amount: 12000, category: 'Retainer', cadence: 'monthly', date: d(-12, 1), active: true },
+    { id: uid(), kind: 'revenue', name: 'Retainer — Client 02', amount: 8500, category: 'Retainer', cadence: 'monthly', date: d(-7, 1), active: true },
+    { id: uid(), kind: 'revenue', name: 'Retainer — Client 03', amount: 6000, category: 'Retainer', cadence: 'monthly', date: d(-3, 15), active: true },
+    { id: uid(), kind: 'revenue', name: 'Retainer — Client 04', amount: 4500, category: 'Retainer', cadence: 'monthly', date: d(-9, 1), active: false },
+    { id: uid(), kind: 'revenue', name: 'Annual support plan — Client 01', amount: 18000, category: 'Retainer', cadence: 'annual', date: d(-10, 20), active: true },
+    { id: uid(), kind: 'revenue', name: 'Brand project — Client 05', amount: 14000, category: 'Project', cadence: 'once', date: d(-1, 8), active: true },
+    { id: uid(), kind: 'revenue', name: 'Landing page build', amount: 6500, category: 'Project', cadence: 'once', date: d(-3, 19), active: true },
+    { id: uid(), kind: 'revenue', name: 'Template sales', amount: 2340, category: 'Product', cadence: 'once', date: d(0, 1), active: true },
+    { id: uid(), kind: 'revenue', name: 'Audit — Client 06', amount: 3200, category: 'Project', cadence: 'once', date: d(-5, 3), active: true },
+  ];
+}
+
+const blankForm = () => ({ id: null, kind: 'expense', name: '', amount: '', category: 'Software', cadence: 'once', date: iso(new Date()) });
+
+// "+Retainer client 02 4500/mo" → revenue monthly 4500; "Design tool 24/mo"; "Contractor invoice 1800"
+function parseQuick(raw) {
+  let s = raw.trim(); if (!s) return null;
+  let kind = 'expense';
+  if (/^\+/.test(s) || /\b(revenue|income|paid us|invoice paid|retainer|client)\b/i.test(s)) kind = 'revenue';
+  s = s.replace(/^\+\s*/, '');
+  const am = s.match(/\$?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(k)?\s*(?:\/|per\s+|a\s+|every\s+)?\s*(mo|month|monthly|m|yr|year|annual|annually|y)?\b/i);
+  if (!am) return { kind, name: s, amount: NaN, cadence: 'once', category: kind === 'revenue' ? 'Project' : 'Software' };
+  let amount = parseFloat(am[1].replace(/,/g, '')); if (am[2]) amount *= 1000;
+  let cadence = 'once';
+  const unit = (am[3] || '').toLowerCase();
+  if (/^(mo|month|monthly|m)$/.test(unit) || /\b(monthly|subscription|sub)\b/i.test(s)) cadence = 'monthly';
+  if (/^(yr|year|annual|annually|y)$/.test(unit) || /\b(annual|yearly)\b/i.test(s)) cadence = 'annual';
+  let name = s.replace(am[0], ' ').replace(/\b(monthly|annual|yearly|subscription|sub|revenue|income)\b/ig, '').replace(/\s+/g, ' ').trim();
+  if (!name) name = kind === 'revenue' ? 'Revenue' : 'Expense';
+  name = name[0].toUpperCase() + name.slice(1);
+  let category;
+  if (kind === 'revenue') category = /retainer|client|monthly/i.test(raw) && cadence !== 'once' ? 'Retainer' : /product|sale|template|shop/i.test(raw) ? 'Product' : cadence === 'once' ? 'Project' : 'Retainer';
+  else if (/payroll|salary|salaries|wage|employee|fte|staff/i.test(raw)) category = 'Payroll';
+  else if (/contractor|freelanc|invoice|agency|consult|editor|video|design work/i.test(raw)) category = 'Contractors';
+  else if (/\bads?\b|meta|google|tiktok|spend|campaign|boost/i.test(raw)) category = 'Ad spend';
+  else category = 'Software';
+  return { kind, name, amount, cadence, category };
+}
+
+
+const GKEY = 'ledger-gemini-key';
+const GEMINI_MODEL = 'gemini-2.0-flash-lite';
+function geminiKey() { try { return localStorage.getItem(GKEY) || ''; } catch (e) { return ''; } }
+function aiAvailable() { return !!geminiKey() || !!(window.claude && window.claude.complete); }
+// One entry point: Gemini when a key is saved, otherwise the built-in helper.
+async function complete({ system, prompt, maxTokens }) {
+  const key = geminiKey();
+  if (key) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2 } }),
+    });
+    if (!res.ok) throw new Error(`Gemini ${res.status}`);
+    const j = await res.json();
+    return ((j.candidates || [])[0]?.content?.parts || []).map(p => p.text || '').join('');
+  }
+  if (window.claude && window.claude.complete) return window.claude.complete({ model: 'claude-haiku-4-5', max_tokens: maxTokens, ...(system ? { system } : {}), messages: [{ role: 'user', content: prompt }] });
+  throw new Error('no model');
+}
+
+async function aiClassify(text, extra) {
+  if (!aiAvailable()) return null;
+  const ec = (extra && extra.expense) || EXP_CATS, rc = (extra && extra.revenue) || REV_CATS;
+  const prompt = `Classify this business ledger line. Reply with JSON only: {"kind":"expense|revenue","category":"<one from the matching list>","cadence":"once|monthly|annual","name":"short clean name"}. Expense categories: ${ec.join(', ')}. Revenue categories: ${rc.join(', ')}.\nLine: ${text}`;
+  try {
+    const out = await complete({ prompt, maxTokens: 120 });
+    const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1));
+    const cats = j.kind === 'revenue' ? rc : ec;
+    return { kind: j.kind === 'revenue' ? 'revenue' : 'expense', category: cats.includes(j.category) ? j.category : cats[0], cadence: ['once','monthly','annual'].includes(j.cadence) ? j.cadence : 'once', name: j.name || '' };
+  } catch (e) { return null; }
+}
+
+class Component extends DCLogic {
+  state = { entries: [], customCats: { expense: [], revenue: [] }, newCatOpen: false, newCat: '', settingsOpen: false, keyDraft: '', loaded: false, page: 'overview', collapsed: false, modalOpen: false, form: blankForm(), formError: '', search: '', catFilter: 'All', cadFilter: 'All', revFilter: 'All', quick: '', quickAI: null, aiBusy: false, toast: '', report: '', reportBusy: false, reportOpen: false };
+
+  componentDidMount() {
+    let entries = null;
+    try { entries = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    if (!Array.isArray(entries)) { entries = seed(); localStorage.setItem(KEY, JSON.stringify(entries)); }
+    const collapsed = localStorage.getItem('ledger-sidebar') === '1';
+    let customCats = { expense: [], revenue: [] };
+    try { const c = JSON.parse(localStorage.getItem('ledger-cats-v1')); if (c && Array.isArray(c.expense)) customCats = c; } catch (e) {}
+    this.setState({ entries, loaded: true, collapsed, customCats });
+    this.onKey = (e) => { if (e.key === 'Escape') this.setState({ modalOpen: false, reportOpen: false, settingsOpen: false }); };
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this.onKey); clearTimeout(this.aiTimer); clearTimeout(this.toastTimer); }
+
+  save(entries) { this.setState({ entries }); localStorage.setItem(KEY, JSON.stringify(entries)); }
+  flash(msg) { this.setState({ toast: msg }); clearTimeout(this.toastTimer); this.toastTimer = setTimeout(() => this.setState({ toast: '' }), 2600); }
+  upsert(entry) {
+    const { entries } = this.state;
+    const next = entry.id ? entries.map(e => e.id === entry.id ? entry : e) : [{ ...entry, id: uid(), active: true }, ...entries];
+    this.save(next);
+  }
+  remove(id) { this.save(this.state.entries.filter(e => e.id !== id)); }
+  cats(kind) { const base = kind === 'revenue' ? REV_CATS : EXP_CATS; const extra = (this.state.customCats[kind] || []).filter(c => !base.includes(c)); return [...base, ...extra]; }
+  addCategory() {
+    const name = this.state.newCat.trim().replace(/\s+/g, ' ');
+    if (!name) return;
+    const kind = this.state.form.kind, all = this.cats(kind);
+    const exists = all.find(c => c.toLowerCase() === name.toLowerCase());
+    const cat = exists || name;
+    const customCats = exists ? this.state.customCats : { ...this.state.customCats, [kind]: [...(this.state.customCats[kind] || []), cat] };
+    localStorage.setItem('ledger-cats-v1', JSON.stringify(customCats));
+    this.setState({ customCats, newCatOpen: false, newCat: '', form: { ...this.state.form, category: cat } });
+  }
+
+  openEdit(e) { this.setState({ modalOpen: true, formError: '', form: { id: e.id, kind: e.kind, name: e.name, amount: String(e.amount), category: e.category, cadence: e.cadence, date: e.date } }); }
+  setForm(patch) { this.setState(s => ({ form: { ...s.form, ...patch }, formError: '' })); }
+  submitForm() {
+    const f = this.state.form, amount = parseFloat(String(f.amount).replace(/[^0-9.]/g, ''));
+    if (!f.name.trim()) return this.setState({ formError: 'Give it a name.' });
+    if (!(amount > 0)) return this.setState({ formError: 'Amount needs to be more than zero.' });
+    if (!f.date) return this.setState({ formError: 'Pick a date.' });
+    const existing = this.state.entries.find(e => e.id === f.id);
+    this.upsert({ ...(existing || {}), id: f.id, kind: f.kind, name: f.name.trim(), amount, category: f.category, cadence: f.cadence, date: f.date });
+    this.setState({ modalOpen: false, form: blankForm() });
+    this.flash(f.id ? 'Updated.' : 'Logged.');
+  }
+
+  // Quick add: regex parse instantly; after a pause, ask the model to refine kind/category when the words are ambiguous.
+  onQuick(v) {
+    this.setState({ quick: v, quickAI: null });
+    clearTimeout(this.aiTimer);
+    const p = parseQuick(v);
+    if (!p || !(p.amount > 0)) return;
+    const confident = /payroll|salary|contractor|freelanc|\bads?\b|meta|google|retainer|client|software|tool|hosting|saas/i.test(v);
+    if (confident) return;
+    this.aiTimer = setTimeout(async () => {
+      this.setState({ aiBusy: true });
+      const r = await aiClassify(v, { expense: this.cats('expense'), revenue: this.cats('revenue') });
+      if (this.state.quick === v && r) this.setState({ quickAI: r });
+      this.setState({ aiBusy: false });
+    }, 700);
+  }
+  quickPreview() {
+    const p = parseQuick(this.state.quick);
+    if (!p) return null;
+    // A custom category named in the line wins over the guess
+    const hit = this.cats(p.kind).find(c => !EXP_CATS.includes(c) && !REV_CATS.includes(c) && this.state.quick.toLowerCase().includes(c.toLowerCase()));
+    if (hit) p.category = hit;
+    const ai = this.state.quickAI;
+    return ai ? { ...p, kind: ai.kind, category: ai.category, cadence: ai.cadence || p.cadence, name: ai.name || p.name } : p;
+  }
+  quickSubmit() {
+    const p = this.quickPreview();
+    if (!p || !(p.amount > 0)) return this.flash('Add an amount — e.g. “Hosting 212/mo”.');
+    this.upsert({ kind: p.kind, name: p.name, amount: p.amount, category: p.category, cadence: p.cadence, date: iso(new Date()) });
+    this.setState({ quick: '', quickAI: null });
+    this.flash(`Logged ${p.name} · ${money2(p.amount)}${p.cadence === 'monthly' ? '/mo' : p.cadence === 'annual' ? '/yr' : ''} → ${p.category}`);
+  }
+
+  async makeReport() {
+    if (!aiAvailable()) return this.setState({ settingsOpen: true, toast: 'Add a Gemini key to write reports.' });
+    this.setState({ reportBusy: true, reportOpen: true, report: '' });
+    const m = this.metrics();
+    const facts = [
+      `Recurring revenue/mo: ${money(m.mrr)} (prev ${money(m.mrrPrev)})`, `Recurring costs/mo: ${money(m.burn)} (prev ${money(m.burnPrev)})`,
+      `This month revenue: ${money(m.revMonth)}, expenses: ${money(m.expMonth)}, net: ${money(m.revMonth - m.expMonth)}`,
+      `Last month revenue: ${money(m.revPrevMonth)}, expenses: ${money(m.expPrevMonth)}`,
+      `Expenses by category this month: ${Object.entries(m.catMonth).map(([k, v]) => `${k} ${money(v)}`).join(', ')}`,
+      `Active subscriptions: ${m.activeSubs.length} — ${m.activeSubs.map(e => `${e.name} ${money(monthly(e))}/mo`).join('; ')}`,
+      `Paused subscriptions: ${m.pausedSubs.map(e => e.name).join('; ') || 'none'}`,
+      `Renewals next 30 days: ${m.renewals.map(r => `${r.name} ${money(r.amount)} on ${r.date}`).join('; ') || 'none'}`,
+      `Last 6 months (rev/exp): ${m.series.slice(-6).map(x => `${x.label} ${money(x.rev)}/${money(x.exp)}`).join(', ')}`,
+    ].join('\n');
+    try {
+      const out = await complete({ maxTokens: 700, system: 'You are a blunt bookkeeper for a small business. Write in second person, present tense, short sentences, concrete numbers. No adjectives like powerful or seamless. No emoji. Plain text with short line breaks, no markdown headers or bullets.', prompt: `Write a monthly finance report in under 180 words: what changed, where the money goes, what to cut or watch, and one action for next week. Facts:\n${facts}` });
+      this.setState({ report: out.trim(), reportBusy: false });
+    } catch (e) { this.setState({ report: `The model did not answer (${e.message}). Check the key under Model settings and try again.`, reportBusy: false }); }
+  }
+
+  metrics() {
+    const { entries } = this.state;
+    const now = new Date(), y = now.getFullYear(), mo = now.getMonth();
+    const today = new Date(y, mo, now.getDate());
+    const activeAt = (e, at) => e.active !== false && parse(e.date) <= at;
+    const sumRec = (kind, at) => entries.filter(e => e.kind === kind && e.cadence !== 'once' && activeAt(e, at)).reduce((a, e) => a + monthly(e), 0);
+    const endOfMonth = (off) => new Date(y, mo + off + 1, 0);
+    // Monthly series: once-off by date month; recurring charges add their monthly amount each month after start (annual spread /12).
+    const series = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(y, mo - i, 1), eom = endOfMonth(-i);
+      const inMonth = (e) => { const p = parse(e.date); return p.getFullYear() === d.getFullYear() && p.getMonth() === d.getMonth(); };
+      const rev = entries.filter(e => e.kind === 'revenue' && ((e.cadence === 'once' && inMonth(e)) || (e.cadence !== 'once' && activeAt(e, eom)))).reduce((a, e) => a + (e.cadence === 'once' ? e.amount : monthly(e)), 0);
+      const exp = entries.filter(e => e.kind === 'expense' && ((e.cadence === 'once' && inMonth(e)) || (e.cadence !== 'once' && activeAt(e, eom)))).reduce((a, e) => a + (e.cadence === 'once' ? e.amount : monthly(e)), 0);
+      series.push({ label: MON[d.getMonth()], rev, exp, year: d.getFullYear(), month: d.getMonth() });
+    }
+    const cur = series[11], prev = series[10];
+    const catMonth = {};
+    entries.filter(e => e.kind === 'expense' && ((e.cadence === 'once' && parse(e.date).getFullYear() === y && parse(e.date).getMonth() === mo) || (e.cadence !== 'once' && activeAt(e, endOfMonth(0))))).forEach(e => { catMonth[e.category] = (catMonth[e.category] || 0) + (e.cadence === 'once' ? e.amount : monthly(e)); });
+    const subs = entries.filter(e => e.kind === 'expense' && e.cadence !== 'once');
+    const activeSubs = subs.filter(e => e.active !== false), pausedSubs = subs.filter(e => e.active === false);
+    // Next charge date for a recurring entry
+    const nextDate = (e) => { let d = parse(e.date); const step = e.cadence === 'annual' ? 12 : 1; let guard = 0; while (d < today && guard++ < 600) d = addMonths(d, step); return d; };
+    const horizon = new Date(y, mo, now.getDate() + 30);
+    const renewals = entries.filter(e => e.cadence !== 'once' && e.active !== false).map(e => ({ ...e, next: nextDate(e) })).filter(r => r.next <= horizon).sort((a, b) => a.next - b.next).map(r => ({ ...r, date: iso(r.next), days: Math.round((r.next - today) / 86400000) }));
+    const yearRev = series.filter(s => s.year === y).reduce((a, s) => a + s.rev, 0), yearExp = series.filter(s => s.year === y).reduce((a, s) => a + s.exp, 0);
+    return { mrr: sumRec('revenue', today), mrrPrev: sumRec('revenue', endOfMonth(-1)), burn: sumRec('expense', today), burnPrev: sumRec('expense', endOfMonth(-1)), revMonth: cur.rev, expMonth: cur.exp, revPrevMonth: prev.rev, expPrevMonth: prev.exp, series, catMonth, activeSubs, pausedSubs, renewals, nextDate, yearRev, yearExp, today };
+  }
+
+  renderVals() {
+    const S = this.state, m = this.metrics();
+    const page = S.page, collapsed = S.collapsed;
+    const go = (p) => () => this.setState({ page: p });
+    const ic = { panel: icon(collapsed ? 'panel-left' : 'panel-left-close', 20), overview: icon('layout-dashboard', 20), expenses: icon('credit-card', 20), subs: icon('activity', 20), revenue: icon('trending-up', 20), plus: icon('plus', 16), search: icon('search', 14), trash: icon('trash-2', 14), x: icon('x', 16), calendar: icon('calendar', 18), zap: icon('zap', 16), sparkles: icon('sparkles', 14) };
+    const ser = m.series, maxV = Math.max(1, ...ser.map(s => Math.max(s.rev, s.exp)));
+    const months = ser.map((s, i) => { const net = s.rev - s.exp; return { label: s.label, revH: Math.round(s.rev / maxV * 100), expH: Math.round(s.exp / maxV * 100), netLabel: (net >= 0 ? '+' : '') + (Math.abs(net) >= 1000 ? (net / 1000).toFixed(1) + 'k' : money(net)), netColor: net >= 0 ? 'var(--ok)' : 'var(--bad)', labelColor: i === 11 ? '#fff' : '#62666D', tip: `${s.label}: revenue ${money(s.rev)}, expenses ${money(s.exp)}` }; });
+    const net = m.revMonth - m.expMonth, netPrev = m.revPrevMonth - m.expPrevMonth;
+    const subsCountAt = (at) => S.entries.filter(e => e.kind === 'expense' && e.cadence !== 'once' && e.active !== false && parse(e.date) <= at).length;
+    const k = {
+      mrr: money(m.mrr), mrrDelta: pct(m.mrr, m.mrrPrev), mrrPrev: money(m.mrrPrev), mrrSpark: ser.map(s => s.rev), mrrBreak: { aLabel: 'Monthly', aValue: money(S.entries.filter(e => e.kind === 'revenue' && e.cadence === 'monthly' && e.active !== false).reduce((a, e) => a + e.amount, 0)), bLabel: 'Annual ÷ 12', bValue: money(S.entries.filter(e => e.kind === 'revenue' && e.cadence === 'annual' && e.active !== false).reduce((a, e) => a + e.amount / 12, 0)) },
+      burn: money(m.burn), burnDelta: pct(m.burn, m.burnPrev), burnPrev: money(m.burnPrev), burnSpark: ser.map(s => s.exp), burnBreak: { aLabel: 'Payroll', aValue: money(m.activeSubs.filter(e => e.category === 'Payroll').reduce((a, e) => a + monthly(e), 0)), bLabel: 'Software', bValue: money(m.activeSubs.filter(e => e.category === 'Software').reduce((a, e) => a + monthly(e), 0)) },
+      net: money(net), netDelta: pct(net, netPrev), netPrev: money(netPrev), netSpark: ser.map(s => s.rev - s.exp), netBreak: { aLabel: 'Revenue', aValue: money(m.revMonth), bLabel: 'Expenses', bValue: money(m.expMonth) },
+      subs: String(m.activeSubs.length), subsDelta: m.activeSubs.length - subsCountAt(new Date(m.today.getFullYear(), m.today.getMonth(), 0)), subsSpark: ser.map(s => subsCountAt(new Date(s.year, s.month + 1, 0))), subsBreak: { aLabel: 'Monthly cost', aValue: money(m.burn), bLabel: 'Paused', bValue: String(m.pausedSubs.length) },
+    };
+    const rowOf = (e) => ({ ...e, dateLabel: dateLabel(e.date), cadenceLabel: CAD_LABEL[e.cadence], amountLabel: (e.kind === 'revenue' ? '+' : '−') + money2(e.amount), amountColor: e.kind === 'revenue' ? 'var(--ok)' : '#EDEDED', dotColor: e.kind === 'revenue' ? 'var(--ok)' : 'rgba(255,255,255,.35)', paused: e.active === false, onEdit: () => this.openEdit(e), onRemove: (ev) => { ev.stopPropagation(); this.remove(e.id); } });
+    const byDate = (a, b) => b.date.localeCompare(a.date);
+    const recent = [...S.entries].sort(byDate).slice(0, 8).map(rowOf);
+    const renewals = m.renewals.slice(0, 7).map(r => ({ name: r.name, dateLabel: shortDate(r.next), cadence: CAD_LABEL[r.cadence], amountLabel: (r.kind === 'revenue' ? '+' : '−') + money(r.amount), amountColor: r.kind === 'revenue' ? 'var(--ok)' : '#EDEDED', daysLabel: r.days <= 0 ? 'today' : r.days === 1 ? 'tomorrow' : `in ${r.days}d`, toneColor: r.days <= 3 ? 'var(--warn)' : 'var(--text-3)', toneBg: r.days <= 3 ? 'var(--warn-dim)' : 'rgba(255,255,255,.05)' }));
+    const renewalsTotal = money(m.renewals.filter(r => r.kind === 'expense').reduce((a, r) => a + r.amount, 0)) + ' out';
+    // Expenses page
+    const q = S.search.trim().toLowerCase();
+    const expAll = S.entries.filter(e => e.kind === 'expense');
+    const expenseRows = expAll.filter(e => (S.catFilter === 'All' || e.category === S.catFilter) && (S.cadFilter === 'All' || (S.cadFilter === 'Recurring' ? e.cadence !== 'once' : e.cadence === 'once')) && (!q || e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q))).sort(byDate).map(rowOf);
+    const chip = (label, active, onClick) => ({ label, onClick, bg: active ? 'rgba(99,102,241,0.16)' : 'var(--surface-2)', color: active ? '#C7D2FE' : '#9CA3AF', border: active ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)' });
+    const catChips = ['All', ...this.cats('expense')].map(c => chip(c, S.catFilter === c, () => this.setState({ catFilter: c })));
+    const cadChips = ['All', 'Recurring', 'One-time'].map(c => chip(c, S.cadFilter === c, () => this.setState({ cadFilter: c })));
+    const topCat = Object.entries(m.catMonth).sort((a, b) => b[1] - a[1])[0];
+    const x = { month: money(m.expMonth), monthDelta: pct(m.expMonth, m.expPrevMonth), monthPrev: money(m.expPrevMonth), monthSpark: ser.map(s => s.exp), year: money(m.yearExp), yearSpark: ser.filter(s => s.year === m.today.getFullYear()).map(s => s.exp), topCat: topCat ? topCat[0] : '—', topCatShare: topCat && m.expMonth ? `${Math.round(topCat[1] / m.expMonth * 100)}% of this month` : '' };
+    // Subscriptions page
+    const subRows = [...m.activeSubs, ...m.pausedSubs].sort((a, b) => monthly(b) - monthly(a)).map(e => { const nd = m.nextDate(e), days = Math.round((nd - m.today) / 86400000); return { ...e, active: e.active !== false, opacity: e.active === false ? 0.55 : 1, cadenceLabel: CAD_LABEL[e.cadence], amountLabel: money2(e.amount), per: e.cadence === 'annual' ? `/ yr · ${money(e.amount / 12)} / mo` : '/ mo', nextLabel: e.active === false ? 'Paused' : `Renews ${shortDate(nd)} · in ${days}d`, nextColor: e.active === false ? 'var(--text-4)' : days <= 3 ? 'var(--warn)' : '#6B7280', onToggle: (on) => this.save(S.entries.map(x => x.id === e.id ? { ...x, active: on } : x)), onEdit: () => this.openEdit(e), onRemove: () => this.remove(e.id) }; });
+    const next30 = m.renewals.filter(r => r.kind === 'expense');
+    const s = { monthly: money(m.burn), annualized: `${money(m.burn * 12)} / yr`, break: { aLabel: 'Monthly plans', aValue: money(m.activeSubs.filter(e => e.cadence === 'monthly').reduce((a, e) => a + e.amount, 0)), bLabel: 'Annual plans', bValue: money(m.activeSubs.filter(e => e.cadence === 'annual').reduce((a, e) => a + e.amount, 0)) + ' / yr' }, active: String(m.activeSubs.length), pausedLabel: `${m.pausedSubs.length} paused`, next30: money(next30.reduce((a, r) => a + r.amount, 0)), next30Count: `${next30.length} charges` };
+    // Revenue page
+    const revAll = S.entries.filter(e => e.kind === 'revenue');
+    const revenueRows = revAll.filter(e => S.revFilter === 'All' || (S.revFilter === 'Recurring' ? e.cadence !== 'once' : e.cadence === 'once')).sort(byDate).map(rowOf);
+    const revChips = ['All', 'Recurring', 'One-time'].map(c => chip(c, S.revFilter === c, () => this.setState({ revFilter: c })));
+    const onceYear = revAll.filter(e => e.cadence === 'once' && parse(e.date).getFullYear() === m.today.getFullYear()).reduce((a, e) => a + e.amount, 0);
+    const rv = { month: money(m.revMonth), monthDelta: pct(m.revMonth, m.revPrevMonth), monthPrev: money(m.revPrevMonth), monthSpark: ser.map(s => s.rev), year: money(m.yearRev), yearSplit: `${money(onceYear)} one-time`, yearSpark: ser.filter(s => s.year === m.today.getFullYear()).map(s => s.rev) };
+    // Modal
+    const f = S.form, isRev = f.kind === 'revenue';
+    const kindSeg = [['expense', 'Expense'], ['revenue', 'Revenue']].map(([v, label]) => ({ label, onClick: () => this.setForm({ kind: v, category: v === 'revenue' ? REV_CATS[0] : EXP_CATS[0] }), bg: f.kind === v ? 'var(--surface-4)' : 'transparent', color: f.kind === v ? '#fff' : '#6B7280' }));
+    const cadSeg = [['once', 'One-time'], ['monthly', 'Monthly'], ['annual', 'Annual']].map(([v, label]) => ({ label, onClick: () => this.setForm({ cadence: v }), bg: f.cadence === v ? 'rgba(99,102,241,0.16)' : 'var(--surface-4)', color: f.cadence === v ? '#C7D2FE' : '#9CA3AF', border: f.cadence === v ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)' }));
+    const titles = { overview: ['Overview', 'this month', 'Revenue in, expenses out, and what renews next.'], expenses: ['Expenses', `${expAll.length} logged`, 'Every charge — one-time and recurring.'], subs: ['Subscriptions', `${m.activeSubs.length} active`, 'Recurring costs. Pause one and it drops out of the run rate.'], revenue: ['Revenue', `${revAll.length} entries`, 'Retainers, projects, product sales.'] };
+    const qp = this.quickPreview();
+    const quickHasPreview = !!(qp && qp.amount > 0);
+    const netRun = m.mrr - m.burn;
+    return {
+      sidebarW: collapsed ? 68 : 260, expanded: !collapsed, collapsed, toggleSidebar: () => { localStorage.setItem('ledger-sidebar', collapsed ? '0' : '1'); this.setState({ collapsed: !collapsed }); },
+      ic, isOverview: page === 'overview', isExpenses: page === 'expenses', isSubs: page === 'subs', isRevenue: page === 'revenue', goOverview: go('overview'), goExpenses: go('expenses'), goSubs: go('subs'), goRevenue: go('revenue'),
+      pageTitle: titles[page][0], pageSub: titles[page][1], pageHint: titles[page][2],
+      netRunLabel: (netRun >= 0 ? '+' : '') + money(netRun), netRunColor: netRun >= 0 ? 'var(--ok)' : 'var(--bad)', entryCount: String(S.entries.length),
+      openAdd: () => this.setState({ modalOpen: true, formError: '', form: blankForm() }),
+      quick: S.quick, setQuick: (e) => this.onQuick(e.target.value), quickKey: (e) => { if (e.key === 'Enter') this.quickSubmit(); }, quickSubmit: () => this.quickSubmit(), quickDisabled: !quickHasPreview, quickBorder: quickHasPreview ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.08)',
+      quickHasPreview, qp: qp ? { kind: qp.kind === 'revenue' ? 'Revenue' : 'Expense', kindColor: qp.kind === 'revenue' ? 'var(--ok)' : 'var(--text-3)', kindBg: qp.kind === 'revenue' ? 'var(--ok-dim)' : 'rgba(255,255,255,.05)', category: qp.category + (S.quickAI ? ' · model' : S.aiBusy ? ' · checking…' : ''), cadence: CAD_LABEL[qp.cadence], amount: money2(qp.amount) } : {},
+      hasToast: !!S.toast, toast: S.toast,
+      k, months, chartRangeLabel: `${ser[0].label} ${ser[0].year} – ${ser[11].label} ${ser[11].year}`, chartRevTotal: money(ser.reduce((a, s) => a + s.rev, 0)), chartExpTotal: money(ser.reduce((a, s) => a + s.exp, 0)),
+      renewals, hasRenewals: renewals.length > 0, noRenewals: S.loaded && renewals.length === 0, renewalsTotal, recent,
+      x, catChips, cadChips, search: S.search, setSearch: (e) => this.setState({ search: e.target.value }), expenseRows, noExpenseRows: S.loaded && expenseRows.length === 0, expenseRowCount: `${expenseRows.length} of ${expAll.length}`, expenseRowTotal: money2(expenseRows.reduce((a, e) => a + e.amount, 0)),
+      s, subRows, noSubs: S.loaded && subRows.length === 0,
+      rv, revChips, revenueRows, noRevenueRows: S.loaded && revenueRows.length === 0, revenueRowCount: `${revenueRows.length} of ${revAll.length}`, revenueRowTotal: money2(revenueRows.reduce((a, e) => a + e.amount, 0)),
+      modalOpen: S.modalOpen, closeModal: () => this.setState({ modalOpen: false }), stop: (e) => e.stopPropagation(), modalTitle: f.id ? 'Edit entry' : 'New entry', submitLabel: f.id ? 'Save' : 'Add', submitForm: () => this.submitForm(),
+      form: f, kindSeg, cadSeg, categoryOptions: this.cats(f.kind),
+      newCatOpen: S.newCatOpen, newCat: S.newCat, openNewCat: () => this.setState({ newCatOpen: true, newCat: '' }), cancelNewCat: () => this.setState({ newCatOpen: false, newCat: '' }), setNewCat: (e) => this.setState({ newCat: e.target.value }), newCatKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addCategory(); } if (e.key === 'Escape') { e.stopPropagation(); this.setState({ newCatOpen: false }); } }, addCategory: () => this.addCategory(), newCatRef: (el) => { if (el && S.newCatOpen && document.activeElement !== el) el.focus(); }, nameLabel: isRev ? 'Source' : 'Name', namePlaceholder: isRev ? 'Retainer — Client 02' : 'Cloud hosting', dateLabel: f.cadence === 'once' ? 'Date' : 'First charge', dateHint: f.cadence === 'once' ? 'When it hit the account.' : 'Renewals are projected from this date.',
+      setName: (e) => this.setForm({ name: e.target.value }), setAmount: (e) => this.setForm({ amount: e.target.value }), setCategory: (e) => this.setForm({ category: e.target.value }), setDate: (e) => this.setForm({ date: e.target.value }),
+      hasError: !!S.formError, formError: S.formError,
+      settingsOpen: S.settingsOpen, openSettings: () => this.setState({ settingsOpen: true, keyDraft: geminiKey() }), closeSettings: () => this.setState({ settingsOpen: false }), keyDraft: S.keyDraft, setKeyDraft: (e) => this.setState({ keyDraft: e.target.value }),
+      saveKey: () => { const k = S.keyDraft.trim(); if (k) localStorage.setItem(GKEY, k); else localStorage.removeItem(GKEY); this.setState({ settingsOpen: false }); this.flash(k ? `Using Gemini (${GEMINI_MODEL}).` : 'Gemini key removed.'); },
+      modelStatus: geminiKey() ? `Gemini · ${GEMINI_MODEL}` : (window.claude && window.claude.complete) ? 'Built-in model (preview only)' : 'No model — categorizing by rules',
+      modelStatusColor: geminiKey() ? 'var(--ok)' : (window.claude && window.claude.complete) ? '#9CA3AF' : 'var(--warn)',
+      hasKey: !!geminiKey(), geminiModel: GEMINI_MODEL, ic2: { settings: icon('settings-2', 16) },
+      makeReport: () => this.makeReport(), reportOpen: S.reportOpen, reportBusy: S.reportBusy, reportText: S.report, closeReport: () => this.setState({ reportOpen: false }), reportLabel: S.reportBusy ? 'Writing…' : 'Monthly report',
+    };
+  }
+}</script>
+</body>
+</html>
