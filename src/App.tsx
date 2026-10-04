@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Activity, CreditCard, LayoutDashboard, PanelLeft, PanelLeftClose, Plus, Settings2, Sparkles, TrendingUp, X, Zap } from 'lucide-react';
 import { Button, SidebarNavItem } from './components/ds.tsx';
 import { h2 } from './components/ui.tsx';
 import { aiAvailable, aiClassify, aiModel, aiReport, browserKey, loadAiStatus, setBrowserKey, type AiStatus } from './lib/ai.ts';
-import { CAD_LABEL, EXP_CATS, REV_CATS, iso, metrics, money, money2, isSampleEntry, parseQuick, reportFacts, uid, type Entry, type Kind } from './lib/ledger.ts';
+import { CAD_LABEL, EXP_CATS, REV_CATS, iso, metrics, money, money2, dateLabel, findKnown, isSampleEntry, knownNames, normName, parseDate, parseQuick, reportFacts, suggestNames, uid, type Entry, type Kind } from './lib/ledger.ts';
 import { KEYS, store } from './lib/storage.ts';
 import { Expenses, type ExpenseFilters } from './views/Expenses.tsx';
 import { EntryModal, SettingsModal, blankForm, formFrom, type FormState } from './views/Modals.tsx';
@@ -62,6 +62,9 @@ export default function App() {
   const [quickAI, setQuickAI] = useState<AiGuess>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestSel, setSuggestSel] = useState(-1);
+  const quickInput = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState('');
   const [report, setReport] = useState({ open: false, busy: false, text: '' });
   const aiTimer = useRef<number>(undefined);
@@ -102,15 +105,19 @@ export default function App() {
     return name;
   };
 
-  // Quick add: rules give an instant preview; when a model is available it
-  // cleans the name and picks the category, and Enter waits for that answer.
-  const askModel = (v: string) => aiClassify(v, { expense: cats('expense'), revenue: cats('revenue') });
+  // Quick add: rules give an instant preview. A name already in the ledger
+  // (any case/spacing) is reused with its category, with no model call. Other
+  // lines go to the model when one is available, and Enter waits for it.
+  const known = useMemo(() => knownNames(entries), [entries]);
+  const askModel = (v: string) => aiClassify(v, { expense: cats('expense'), revenue: cats('revenue'), known: known.slice(0, 80).map((e) => e.name) });
   const onQuick = (v: string) => {
     setQuick(v);
     setQuickAI(null);
+    setSuggestOpen(true);
+    setSuggestSel(-1);
     clearTimeout(aiTimer.current);
     const p = parseQuick(v);
-    if (!p || !(p.amount > 0) || !aiAvailable()) return;
+    if (!p || !(p.amount > 0) || !aiAvailable() || findKnown(p.name, entries)) { setAiBusy(false); return; }
     aiTimer.current = window.setTimeout(async () => {
       setAiBusy(true);
       const r = await askModel(v);
@@ -124,27 +131,65 @@ export default function App() {
     // A custom category named in the line wins over the guess.
     const hit = cats(p.kind).find((c) => !EXP_CATS.includes(c) && !REV_CATS.includes(c) && text.toLowerCase().includes(c.toLowerCase()));
     if (hit) p.category = hit;
-    return ai ? { ...p, kind: ai.kind, category: hit || ai.category, cadence: ai.cadence || p.cadence, name: ai.name || p.name } : p;
+    const base = ai ? { ...p, kind: ai.kind, category: hit || ai.category, cadence: ai.cadence || p.cadence, name: ai.name || p.name } : p;
+    const match = findKnown(p.name, entries) || (ai?.name ? findKnown(ai.name, entries) : null);
+    if (!match) return { ...base, matched: false };
+    // "frame.io 15" for a monthly vendor means this month's charge of that subscription.
+    const saysCadence = /\/\s*(mo|m|month|yr|y|year)\b|\b(monthly|annual|yearly|per month|per year|a month|a year|once|one[- ]time)\b/i.test(text);
+    return { ...base, kind: match.kind, category: hit || match.category, name: match.name, cadence: saysCadence ? base.cadence : match.cadence, matched: true };
   };
   const qp = preview(quick, quickAI);
   const quickReady = !!(qp && qp.amount > 0) && !submitting;
+  const typedName = parseQuick(quick)?.name || '';
+  const suggestions = suggestOpen && !qp?.matched ? suggestNames(typedName, entries) : [];
+  const pickSuggestion = (e: Entry) => {
+    const p = parseQuick(quick);
+    const rest = [p?.amountText, parseDate(quick)?.label].filter(Boolean).join(' ');
+    const next = `${quick.trim().startsWith('+') ? '+' : ''}${e.name} ${rest}`.replace(/\s+$/, rest ? '' : ' ');
+    onQuick(next);
+    setSuggestOpen(false);
+    quickInput.current?.focus();
+  };
   const quickSubmit = async () => {
     if (submitting) return;
     if (!qp || !(qp.amount > 0)) return flash('Add an amount — e.g. “Hosting 212/mo”.');
     clearTimeout(aiTimer.current);
     let final = qp;
-    if (!quickAI && aiAvailable()) {
+    if (!quickAI && !qp.matched && aiAvailable()) {
       setSubmitting(true);
       setAiBusy(true);
       const r = await withTimeout(askModel(quick), 6000);
       setSubmitting(false);
       if (r) final = preview(quick, r) || qp;
     }
-    upsert({ kind: final.kind, name: final.name, amount: final.amount, category: final.category, cadence: final.cadence, date: iso(new Date()) });
+    const per = (c: Entry['cadence']) => (c === 'monthly' ? '/mo' : c === 'annual' ? '/yr' : '');
+    // A recurring entry already counts every month. Logging it again as
+    // recurring would double it, so update the existing one instead.
+    const existing = entries.find((e) => e.cadence !== 'once' && e.active !== false && e.kind === final.kind && normName(e.name) === normName(final.name));
+    if (existing && final.cadence !== 'once') {
+      upsert({ ...existing, amount: final.amount, cadence: final.cadence });
+      flash(existing.amount === final.amount && existing.cadence === final.cadence
+        ? `${existing.name} is already tracked at ${money2(existing.amount)}${per(existing.cadence)} — nothing added.`
+        : `Updated ${existing.name}: ${money2(existing.amount)}${per(existing.cadence)} → ${money2(final.amount)}${per(final.cadence)}`);
+    } else {
+      upsert({ kind: final.kind, name: final.name, amount: final.amount, category: final.category, cadence: final.cadence, date: final.date || iso(new Date()) });
+      flash(existing
+        ? `Logged a one-time ${existing.name} charge · ${money2(final.amount)}. Its ${CAD_LABEL[existing.cadence].toLowerCase()} subscription is already counted.`
+        : `Logged ${final.name} · ${money2(final.amount)}${per(final.cadence)} → ${final.category}${final.date && final.date !== iso(new Date()) ? ` · ${dateLabel(final.date)}` : ''}`);
+    }
     setQuick('');
     setQuickAI(null);
     setAiBusy(false);
-    flash(`Logged ${final.name} · ${money2(final.amount)}${final.cadence === 'monthly' ? '/mo' : final.cadence === 'annual' ? '/yr' : ''} → ${final.category}`);
+    setSuggestOpen(false);
+  };
+  const onQuickKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    const n = suggestions.length;
+    if (n && e.key === 'ArrowDown') { e.preventDefault(); setSuggestSel((i) => (i + 1) % n); return; }
+    if (n && e.key === 'ArrowUp') { e.preventDefault(); setSuggestSel((i) => (i <= 0 ? n - 1 : i - 1)); return; }
+    if (n && e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); pickSuggestion(suggestions[Math.max(0, suggestSel)]); return; }
+    if (n && e.key === 'Enter' && suggestSel >= 0) { e.preventDefault(); pickSuggestion(suggestions[suggestSel]); return; }
+    if (n && e.key === 'Escape') { e.stopPropagation(); setSuggestOpen(false); return; }
+    if (e.key === 'Enter') quickSubmit();
   };
 
   const makeReport = async () => {
@@ -251,22 +296,35 @@ export default function App() {
           )}
 
           {/* Quick add: one line, Enter to log */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6, position: 'relative', zIndex: 5 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 48, padding: '0 8px 0 16px', borderRadius: 10, border: `1px solid ${quickReady ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.08)'}`, background: 'var(--surface-2)', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.05)', transition: 'border-color .16s' }}>
               <span style={{ color: '#6B7280', display: 'inline-flex' }}><Zap size={16} /></span>
-              <input value={quick} onChange={(e) => onQuick(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') quickSubmit(); }} aria-label="Quick add an entry" placeholder="Type it like you'd say it — “Design tool 24/mo”, “Contractor invoice 1800”, “+Retainer client 02 4500/mo”" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, outline: 'none', color: '#F3F4F6', fontSize: 15 }} />
+              <input ref={quickInput} value={quick} onChange={(e) => onQuick(e.target.value)} onKeyDown={onQuickKey} onBlur={() => setTimeout(() => setSuggestOpen(false), 120)} role="combobox" aria-expanded={suggestions.length > 0} aria-controls="quick-suggest" aria-autocomplete="list" aria-activedescendant={suggestSel >= 0 ? `quick-suggest-${suggestSel}` : undefined} autoComplete="off" aria-label="Quick add an entry" placeholder="Type it like you'd say it — “Design tool 24/mo”, “Contractor invoice 1800”, “+Retainer client 02 4500/mo”" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, outline: 'none', color: '#F3F4F6', fontSize: 15 }} />
               {quickReady && qp && (
                 <div className="quick-preview" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
                   <span style={{ fontFamily: 'var(--font-mono-app)', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, color: qp.kind === 'revenue' ? 'var(--ok)' : 'var(--text-3)', background: qp.kind === 'revenue' ? 'var(--ok-dim)' : 'rgba(255,255,255,.05)' }}>{qp.kind === 'revenue' ? 'Revenue' : 'Expense'}</span>
-                  <span className="qp-meta" style={{ fontSize: 12, color: '#9CA3AF' }}>{qp.category + (quickAI ? ' · Gemini' : aiBusy ? ' · checking…' : '')}</span>
+                  {(qp.matched || quickAI) && <span className="qp-meta" style={{ fontSize: 12, color: '#E5E7EB', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={qp.matched ? 'Matches a name you already use' : 'Name from Gemini'}>{qp.name}</span>}
+                  <span className="qp-meta" style={{ fontSize: 12, color: '#9CA3AF' }}>{qp.category + (qp.matched ? ' · saved' : quickAI ? ' · Gemini' : aiBusy ? ' · checking…' : '')}</span>
                   <span className="qp-meta" style={{ fontSize: 12, color: '#9CA3AF' }}>· {CAD_LABEL[qp.cadence]}</span>
+                  {qp.date && qp.date !== iso(new Date()) && <span className="qp-meta" style={{ fontSize: 12, color: '#C7D2FE', fontFamily: 'var(--font-mono-app)' }}>· {dateLabel(qp.date)}</span>}
                   <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#fff', marginLeft: 4 }}>{money2(qp.amount)}</span>
                 </div>
               )}
               <Button variant="solid" size="sm" onClick={quickSubmit} disabled={!quickReady}>{submitting ? 'Sorting…' : 'Log ↵'}</Button>
             </div>
+            {suggestions.length > 0 && (
+              <div id="quick-suggest" role="listbox" aria-label="Names you've used" className="fade-up-fast" style={{ position: 'absolute', top: 52, left: 0, right: 0, maxWidth: 520, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'var(--surface-3)', boxShadow: '0 16px 40px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.05)', padding: 4, display: 'grid' }}>
+                <div style={{ padding: '6px 10px 4px', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#4B5563', fontWeight: 600 }}>Used before · Tab to fill</div>
+                {suggestions.map((e, i) => (
+                  <div key={e.id} id={`quick-suggest-${i}`} role="option" aria-selected={i === suggestSel} onMouseDown={(ev) => { ev.preventDefault(); pickSuggestion(e); }} onMouseEnter={() => setSuggestSel(i)} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', background: i === suggestSel ? 'rgba(255,255,255,0.06)' : 'transparent' }}>
+                    <span style={{ color: '#F3F4F6', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{e.name}</span>
+                    <span style={{ color: '#6B7280', fontSize: 12, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{e.category} · {CAD_LABEL[e.cadence]} · {money2(e.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#4B5563', paddingLeft: 4, flexWrap: 'wrap' }}>
-              <span className="quick-hint">Amount anywhere · “/mo” or “/yr” makes it recurring · start with “+” for revenue · category is guessed from words like payroll, contractor, ads</span>
+              <span className="quick-hint">Amount anywhere · “/mo” or “/yr” makes it recurring · “yesterday”, “oct 2” or “10/2” sets the date · start with “+” for revenue · Tab fills a name you've used</span>
               {toast && <span role="status" style={{ color: 'var(--ok)' }}>{toast}</span>}
             </div>
           </div>

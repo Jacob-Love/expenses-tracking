@@ -28,7 +28,7 @@ export async function routeAi(method: string, path: string, readBody: () => Prom
     try { body = JSON.parse(raw || '{}'); } catch { return { status: 400, data: { error: 'Invalid JSON' } }; }
 
     if (path === '/api/ai/classify') {
-      const input: ClassifyInput = { text: String(body.text || ''), expense: body.expense as string[], revenue: body.revenue as string[] };
+      const input: ClassifyInput = { text: String(body.text || ''), expense: body.expense as string[], revenue: body.revenue as string[], known: body.known as string[] };
       if (!input.text.trim() || !Array.isArray(input.expense) || !Array.isArray(input.revenue) || !input.expense.length || !input.revenue.length) {
         return { status: 400, data: { error: 'text, expense[] and revenue[] are required' } };
       }

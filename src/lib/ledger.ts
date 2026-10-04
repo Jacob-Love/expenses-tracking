@@ -85,24 +85,72 @@ function pickAmount(s: string): RegExpMatchArray | null {
   return toMatch(pool.reduce((a, b) => (value(b) > value(a) ? b : a)));
 }
 
-export interface QuickParse { kind: Kind; name: string; amount: number; cadence: Cadence; category: string }
+export interface QuickParse { kind: Kind; name: string; amount: number; cadence: Cadence; category: string; /** The amount/cadence text as typed, e.g. "15/mo". */ amountText?: string; /** ISO date when the line names one. */ date?: string }
 
 // "+Retainer client 02 4500/mo" → revenue monthly 4500; "Design tool 24/mo"; "Contractor invoice 1800"
-export function parseQuick(raw: string): QuickParse | null {
+// ── Dates in quick-add ──────────────────────────────────────────────────────
+// "yesterday", "last fri", "3 days ago", "oct 2", "2nd october", "10/2",
+// "10/2/26", "2026-10-02", "on the 3rd". A date without a year that would land
+// more than 30 days in the future is read as last year (you log what already
+// happened). Dates are removed from the line before the amount is picked, so
+// "Figma 12 on 10/28" is $12 on Oct 28, not $28.
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const MONTH_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?';
+const DAY_RE = '(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?)';
+const ORD = '(\\d{1,2})(?:st|nd|rd|th)?';
+const LEAD = '(?:\\b(?:on|dated|from)\\s+)?';
+
+export function parseDate(text: string, now = new Date()): { date: string; text: string; label: string } | null {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const valid = (y: number, m: number, d: number) => { const r = new Date(y, m, d); return r.getMonth() === m && r.getDate() === d ? r : null; };
+  const noYear = (m: number, d: number) => {
+    const r = valid(today.getFullYear(), m, d);
+    if (!r) return null;
+    return r.getTime() - today.getTime() > 30 * 86400000 ? valid(today.getFullYear() - 1, m, d) : r;
+  };
+  const year = (y: string) => (y.length === 2 ? 2000 + Number(y) : Number(y));
+  const rules: [RegExp, (m: RegExpMatchArray) => Date | null][] = [
+    [new RegExp(`${LEAD}\\b(\\d{4})-(\\d{1,2})-(\\d{1,2})\\b`, 'i'), (m) => valid(Number(m[1]), Number(m[2]) - 1, Number(m[3]))],
+    [new RegExp(`${LEAD}\\b(\\d{1,2})\\/(\\d{1,2})(?:\\/(\\d{2}|\\d{4}))?\\b`, 'i'), (m) => (m[3] ? valid(year(m[3]), Number(m[1]) - 1, Number(m[2])) : noYear(Number(m[1]) - 1, Number(m[2])))],
+    [new RegExp(`${LEAD}\\b${MONTH_RE}\\s+${ORD}(?:,?\\s+(\\d{4}))?\\b`, 'i'), (m) => { const mo = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase()); return m[3] ? valid(Number(m[3]), mo, Number(m[2])) : noYear(mo, Number(m[2])); }],
+    [new RegExp(`${LEAD}\\b(?:the\\s+)?${ORD}\\s+(?:of\\s+)?${MONTH_RE}(?:,?\\s+(\\d{4}))?\\b`, 'i'), (m) => { const mo = MONTHS.indexOf(m[2].slice(0, 3).toLowerCase()); return m[3] ? valid(Number(m[3]), mo, Number(m[1])) : noYear(mo, Number(m[1])); }],
+    [/\b(today|yesterday|tomorrow)\b/i, (m) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + ({ today: 0, yesterday: -1, tomorrow: 1 } as Record<string, number>)[m[1].toLowerCase()])],
+    [/\b(\d{1,3})\s+days?\s+ago\b/i, (m) => new Date(today.getFullYear(), today.getMonth(), today.getDate() - Number(m[1]))],
+    [/\b(?:a|1|one)\s+week\s+ago\b|\blast\s+week\b/i, () => new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)],
+    // Short day names need "on"/"last" in front so names like "Sun Life" stay names.
+    [new RegExp(`\\b(?:on|last)\\s+${DAY_RE}\\b|\\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\\b`, 'i'), (m) => { const wd = DAYS.indexOf((m[1] || m[2]).slice(0, 3).toLowerCase()); const back = (today.getDay() - wd + 7) % 7 || 7; return new Date(today.getFullYear(), today.getMonth(), today.getDate() - back); }],
+    [/\bon\s+the\s+(\d{1,2})(?:st|nd|rd|th)?\b/i, (m) => { const d = Number(m[1]); const r = valid(today.getFullYear(), today.getMonth(), d); return r && r <= today ? r : valid(today.getFullYear(), today.getMonth() - 1, d) || addMonths(new Date(today.getFullYear(), today.getMonth() - 1, 1), 0); }],
+  ];
+  for (const [re, fn] of rules) {
+    const m = text.match(re);
+    if (!m) continue;
+    const d = fn(m);
+    if (!d) continue;
+    return { date: iso(d), text: text.replace(m[0], ' ').replace(/\s+/g, ' ').trim(), label: m[0].trim() };
+  }
+  return null;
+}
+
+export function parseQuick(raw: string, now = new Date()): QuickParse | null {
   let s = raw.trim();
   if (!s) return null;
   let kind: Kind = 'expense';
   if (/^\+/.test(s) || /\b(revenue|income|paid us|invoice paid|retainer|client)\b/i.test(s)) kind = 'revenue';
   s = s.replace(/^\+\s*/, '');
+  const dt = parseDate(s, now);
+  if (dt) s = dt.text;
+  const date = dt?.date;
   const am = pickAmount(s);
-  if (!am) return { kind, name: s, amount: NaN, cadence: 'once', category: kind === 'revenue' ? 'Project' : 'Software' };
+  if (!am) return { kind, name: s, amount: NaN, cadence: 'once', category: kind === 'revenue' ? 'Project' : 'Software', ...(date ? { date } : {}) };
   let amount = parseFloat(am[1].replace(/,/g, ''));
   if (am[2]) amount *= 1000;
   let cadence: Cadence = 'once';
   const unit = (am[3] || '').toLowerCase();
   if (/^(mo|month|monthly|m)$/.test(unit) || /\b(monthly|subscription|sub)\b/i.test(s)) cadence = 'monthly';
   if (/^(yr|year|annual|annually|y)$/.test(unit) || /\b(annual|yearly)\b/i.test(s)) cadence = 'annual';
-  let name = s.replace(am[0], ' ').replace(/\b(monthly|annual|yearly|subscription|sub|revenue|income)\b/gi, '').replace(/\s+/g, ' ').trim();
+  let name = s.replace(am[0], ' ').replace(/\b(one[- ]?time|once|monthly|annual|yearly|subscription|sub|revenue|income)\b/gi, '').replace(/\s+/g, ' ').trim();
   // "for frame.io which is for video storage" → "frame.io"
   name = name.replace(/\s+(which|that|it)\s+(is|was|'s)\b.*$/i, '').replace(/^(for|paid|paying|bought|to)\s+/i, '').replace(/\s+(for|to|on)$/i, '').trim();
   if (!name) name = kind === 'revenue' ? 'Revenue' : 'Expense';
@@ -113,7 +161,7 @@ export function parseQuick(raw: string): QuickParse | null {
   else if (/contractor|freelanc|invoice|agency|consult|editor|video edit|design work/i.test(raw)) category = 'Contractors';
   else if (/\bads?\b|meta|google|tiktok|spend|campaign|boost/i.test(raw)) category = 'Ad spend';
   else category = 'Software';
-  return { kind, name, amount, cadence, category };
+  return { kind, name, amount, cadence, category, amountText: am[0].trim(), ...(date ? { date } : {}) };
 }
 
 // Sample entries from early versions were saved into real browsers. They are
@@ -189,4 +237,38 @@ export function reportFacts(m: Metrics) {
     `Renewals next 30 days: ${m.renewals.map((r) => `${r.name} ${money(r.amount)} on ${r.nextIso}`).join('; ') || 'none'}`,
     `Last 6 months (rev/exp): ${m.series.slice(-6).map((x) => `${x.label} ${money(x.rev)}/${money(x.exp)}`).join(', ')}`,
   ].join('\n');
+}
+
+// ── Known names ─────────────────────────────────────────────────────────────
+// Vendors and sources repeat. Matching ignores case, spacing and punctuation
+// ("frame io", "FRAME.IO" → "Frame.io") so one vendor stays one name.
+
+export const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** One entry per distinct name, most recent first. */
+export function knownNames(entries: Entry[]): Entry[] {
+  const seen = new Set<string>();
+  const out: Entry[] = [];
+  for (const e of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
+    const k = normName(e.name);
+    if (k && !seen.has(k)) { seen.add(k); out.push(e); }
+  }
+  return out;
+}
+
+/** The existing entry this name refers to, if any. */
+export function findKnown(name: string, entries: Entry[]): Entry | null {
+  const k = normName(name);
+  if (k.length < 2) return null;
+  return knownNames(entries).find((e) => normName(e.name) === k) || null;
+}
+
+/** Names to offer while typing: prefix matches first, then word matches. */
+export function suggestNames(query: string, entries: Entry[], limit = 5): Entry[] {
+  const q = normName(query);
+  if (q.length < 2) return [];
+  const known = knownNames(entries).filter((e) => normName(e.name) !== q);
+  const prefix = known.filter((e) => normName(e.name).startsWith(q));
+  const words = known.filter((e) => !prefix.includes(e) && e.name.toLowerCase().split(/[^a-z0-9]+/).some((w) => w.length > 1 && normName(w).startsWith(q)));
+  return [...prefix, ...words].slice(0, limit);
 }

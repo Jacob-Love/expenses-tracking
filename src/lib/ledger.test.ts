@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, isSampleEntry, iso, metrics, parseQuick, seed, type Entry } from './ledger.ts';
+import { addMonths, findKnown, parseDate, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
 
 describe('parseQuick', () => {
   it('reads a monthly software subscription', () => {
-    expect(parseQuick('Design tool 24/mo')).toEqual({ kind: 'expense', name: 'Design tool', amount: 24, cadence: 'monthly', category: 'Software' });
+    expect(parseQuick('Design tool 24/mo')).toEqual({ kind: 'expense', name: 'Design tool', amount: 24, cadence: 'monthly', category: 'Software', amountText: '24/mo' });
   });
   it('treats a leading + as revenue and /mo as a retainer', () => {
     expect(parseQuick('+Retainer client 02 4500/mo')).toMatchObject({ kind: 'revenue', amount: 4500, cadence: 'monthly', category: 'Retainer' });
@@ -73,5 +73,53 @@ describe('metrics', () => {
     const m = metrics([e({ cadence: 'monthly', amount: 20, date: '2026-05-20' }), e({ cadence: 'annual', amount: 999, date: '2025-12-01' })], now);
     expect(m.renewals.map((r) => r.nextIso)).toEqual(['2026-10-20']);
     expect(m.renewals[0].days).toBe(17);
+  });
+});
+
+describe('known names', () => {
+  const mk = (name: string, date: string, category = 'Software'): Entry => ({ id: name + date, kind: 'expense', name, amount: 10, category, cadence: 'monthly', date, active: true });
+  const entries = [mk('Frame.io', '2026-09-01'), mk('Figma', '2026-08-01'), mk('Meta ads — Sep', '2026-09-30', 'Ad spend'), mk('frame io', '2026-01-01')];
+
+  it('matches regardless of case, spacing and punctuation, preferring the latest spelling', () => {
+    expect(findKnown('FRAME IO', entries)?.name).toBe('Frame.io');
+    expect(findKnown('frameio', entries)?.name).toBe('Frame.io');
+    expect(findKnown('Frames', entries)).toBeNull();
+  });
+  it('suggests prefix matches first, then word matches, without duplicates', () => {
+    expect(suggestNames('f', entries)).toEqual([]);
+    expect(suggestNames('fr', entries).map((e) => e.name)).toEqual(['Frame.io']);
+    expect(suggestNames('fi', entries).map((e) => e.name)).toEqual(['Figma']);
+    expect(suggestNames('ads', entries).map((e) => e.name)).toEqual(['Meta ads — Sep']);
+    expect(suggestNames('frame.io', entries)).toEqual([]);
+  });
+});
+
+describe('dates in quick-add', () => {
+  const now = new Date(2026, 9, 4); // Sun Oct 4 2026
+  const q = (t: string) => parseQuick(t, now)!;
+  it('reads relative dates', () => {
+    expect(q('Figma 45 yesterday')).toMatchObject({ date: '2026-10-03', amount: 45, name: 'Figma' });
+    expect(q('Lunch 30 3 days ago').date).toBe('2026-10-01');
+    expect(q('Hosting 212 last friday').date).toBe('2026-10-02');
+    expect(q('Hosting 212 on fri').date).toBe('2026-10-02');
+    expect(q('Hosting 212 on the 1st').date).toBe('2026-10-01');
+  });
+  it('reads calendar dates and keeps them out of the amount', () => {
+    expect(q('Figma 12 on 10/28')).toMatchObject({ amount: 12, date: '2026-10-28', name: 'Figma' });
+    expect(q('Figma 12 on 12/15').date).toBe('2025-12-15');
+    expect(q('Figma 12 on 9/28')).toMatchObject({ amount: 12, date: '2026-09-28' });
+    expect(q('Meta ads 300 oct 2')).toMatchObject({ amount: 300, date: '2026-10-02', name: 'Meta ads' });
+    expect(q('Meta ads 300 2nd of September').date).toBe('2026-09-02');
+    expect(q('Audit 3200 2026-03-05').date).toBe('2026-03-05');
+    expect(q('Audit 3200 3/5/25').date).toBe('2025-03-05');
+  });
+  it('leaves lines without dates alone', () => {
+    expect(q('Sun Life insurance 90/mo')).toMatchObject({ name: 'Sun Life insurance', amount: 90 });
+    expect(q('Sun Life insurance 90/mo').date).toBeUndefined();
+    expect(q('24/7 support 30').amount).toBe(30);
+    expect(parseDate('Frame.io 15/mo', now)).toBeNull();
+  });
+  it('drops cadence words from the name', () => {
+    expect(q('frame.io 40 one-time')).toMatchObject({ name: 'Frame.io', cadence: 'once' });
   });
 });
