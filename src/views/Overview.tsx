@@ -1,4 +1,4 @@
-import { Calendar } from 'lucide-react';
+import { Calendar, Zap } from 'lucide-react';
 import { EmptyState, KpiCard } from '../components/ds.tsx';
 import { cardFlat, cardLit, colHead, h2, mono, signed } from '../components/ui.tsx';
 import { CAD_LABEL, dateLabel, money, monthly, parse, pct, shortDate, type Entry, type Metrics } from '../lib/ledger.ts';
@@ -121,6 +121,7 @@ export function Overview({ entries, m, onEdit }: { entries: Entry[]; m: Metrics;
                 <span style={{ textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: e.kind === 'revenue' ? 'var(--ok)' : '#EDEDED' }}>{signed(e)}</span>
               </div>
             ))}
+            {!recent.length && <EmptyState icon={<Zap size={18} />} title="Your entries will show up here" hint="Type a charge in the bar above — “Frame.io 15/mo”, “Contractor invoice 1800”, “+Client retainer 4500/mo” — and press Enter." />}
           </div>
         </div>
       </div>

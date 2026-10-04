@@ -3,7 +3,7 @@ import { Activity, CreditCard, LayoutDashboard, PanelLeft, PanelLeftClose, Plus,
 import { Button, SidebarNavItem } from './components/ds.tsx';
 import { h2 } from './components/ui.tsx';
 import { aiAvailable, aiClassify, aiModel, aiReport, browserKey, loadAiStatus, setBrowserKey, type AiStatus } from './lib/ai.ts';
-import { CAD_LABEL, EXP_CATS, REV_CATS, iso, metrics, money, money2, parseQuick, reportFacts, rulesConfident, seed, uid, type Entry, type Kind } from './lib/ledger.ts';
+import { CAD_LABEL, EXP_CATS, REV_CATS, iso, metrics, money, money2, isSampleEntry, parseQuick, reportFacts, uid, type Entry, type Kind } from './lib/ledger.ts';
 import { KEYS, store } from './lib/storage.ts';
 import { Expenses, type ExpenseFilters } from './views/Expenses.tsx';
 import { EntryModal, SettingsModal, blankForm, formFrom, type FormState } from './views/Modals.tsx';
@@ -15,13 +15,19 @@ type Page = 'overview' | 'expenses' | 'subs' | 'revenue';
 type CustomCats = Record<Kind, string[]>;
 type AiGuess = Awaited<ReturnType<typeof aiClassify>>;
 
+// New ledgers start empty. Browsers that were seeded with sample data by an
+// earlier version get it removed once; the user's own entries are kept.
 function loadEntries(): Entry[] {
   const saved = store.json<Entry[]>(KEYS.entries);
-  if (Array.isArray(saved)) return saved;
-  const fresh = seed();
-  store.set(KEYS.entries, JSON.stringify(fresh));
-  return fresh;
+  if (!Array.isArray(saved)) return [];
+  if (store.get(KEYS.sampleCleared)) return saved;
+  const mine = saved.filter((e) => !isSampleEntry(e));
+  store.set(KEYS.entries, JSON.stringify(mine));
+  store.set(KEYS.sampleCleared, '1');
+  return mine;
 }
+
+const withTimeout = <T,>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
 
 function loadCats(): CustomCats {
   const c = store.json<CustomCats>(KEYS.cats);
@@ -55,6 +61,7 @@ export default function App() {
   const [quick, setQuick] = useState('');
   const [quickAI, setQuickAI] = useState<AiGuess>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState('');
   const [report, setReport] = useState({ open: false, busy: false, text: '' });
   const aiTimer = useRef<number>(undefined);
@@ -95,38 +102,49 @@ export default function App() {
     return name;
   };
 
-  // Quick add: rules parse instantly; after a pause, the model refines kind/category when the words are ambiguous.
+  // Quick add: rules give an instant preview; when a model is available it
+  // cleans the name and picks the category, and Enter waits for that answer.
+  const askModel = (v: string) => aiClassify(v, { expense: cats('expense'), revenue: cats('revenue') });
   const onQuick = (v: string) => {
     setQuick(v);
     setQuickAI(null);
     clearTimeout(aiTimer.current);
     const p = parseQuick(v);
-    if (!p || !(p.amount > 0) || rulesConfident(v) || !aiAvailable()) return;
+    if (!p || !(p.amount > 0) || !aiAvailable()) return;
     aiTimer.current = window.setTimeout(async () => {
       setAiBusy(true);
-      const r = await aiClassify(v, { expense: cats('expense'), revenue: cats('revenue') });
+      const r = await askModel(v);
       if (quickRef.current === v && r) setQuickAI(r);
-      setAiBusy(false);
-    }, 700);
+      if (quickRef.current === v) setAiBusy(false);
+    }, 600);
   };
-  const quickPreview = () => {
-    const p = parseQuick(quick);
+  const preview = (text: string, ai: AiGuess) => {
+    const p = parseQuick(text);
     if (!p) return null;
     // A custom category named in the line wins over the guess.
-    const hit = cats(p.kind).find((c) => !EXP_CATS.includes(c) && !REV_CATS.includes(c) && quick.toLowerCase().includes(c.toLowerCase()));
+    const hit = cats(p.kind).find((c) => !EXP_CATS.includes(c) && !REV_CATS.includes(c) && text.toLowerCase().includes(c.toLowerCase()));
     if (hit) p.category = hit;
-    return quickAI ? { ...p, kind: quickAI.kind, category: quickAI.category, cadence: quickAI.cadence || p.cadence, name: quickAI.name || p.name } : p;
+    return ai ? { ...p, kind: ai.kind, category: hit || ai.category, cadence: ai.cadence || p.cadence, name: ai.name || p.name } : p;
   };
-  const qp = quickPreview();
-  const quickReady = !!(qp && qp.amount > 0);
-  const quickSubmit = () => {
+  const qp = preview(quick, quickAI);
+  const quickReady = !!(qp && qp.amount > 0) && !submitting;
+  const quickSubmit = async () => {
+    if (submitting) return;
     if (!qp || !(qp.amount > 0)) return flash('Add an amount — e.g. “Hosting 212/mo”.');
     clearTimeout(aiTimer.current);
-    upsert({ kind: qp.kind, name: qp.name, amount: qp.amount, category: qp.category, cadence: qp.cadence, date: iso(new Date()) });
+    let final = qp;
+    if (!quickAI && aiAvailable()) {
+      setSubmitting(true);
+      setAiBusy(true);
+      const r = await withTimeout(askModel(quick), 6000);
+      setSubmitting(false);
+      if (r) final = preview(quick, r) || qp;
+    }
+    upsert({ kind: final.kind, name: final.name, amount: final.amount, category: final.category, cadence: final.cadence, date: iso(new Date()) });
     setQuick('');
     setQuickAI(null);
     setAiBusy(false);
-    flash(`Logged ${qp.name} · ${money2(qp.amount)}${qp.cadence === 'monthly' ? '/mo' : qp.cadence === 'annual' ? '/yr' : ''} → ${qp.category}`);
+    flash(`Logged ${final.name} · ${money2(final.amount)}${final.cadence === 'monthly' ? '/mo' : final.cadence === 'annual' ? '/yr' : ''} → ${final.category}`);
   };
 
   const makeReport = async () => {
@@ -240,12 +258,12 @@ export default function App() {
               {quickReady && qp && (
                 <div className="quick-preview" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
                   <span style={{ fontFamily: 'var(--font-mono-app)', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, color: qp.kind === 'revenue' ? 'var(--ok)' : 'var(--text-3)', background: qp.kind === 'revenue' ? 'var(--ok-dim)' : 'rgba(255,255,255,.05)' }}>{qp.kind === 'revenue' ? 'Revenue' : 'Expense'}</span>
-                  <span className="qp-meta" style={{ fontSize: 12, color: '#9CA3AF' }}>{qp.category + (quickAI ? ' · model' : aiBusy ? ' · checking…' : '')}</span>
+                  <span className="qp-meta" style={{ fontSize: 12, color: '#9CA3AF' }}>{qp.category + (quickAI ? ' · Gemini' : aiBusy ? ' · checking…' : '')}</span>
                   <span className="qp-meta" style={{ fontSize: 12, color: '#9CA3AF' }}>· {CAD_LABEL[qp.cadence]}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#fff', marginLeft: 4 }}>{money2(qp.amount)}</span>
                 </div>
               )}
-              <Button variant="solid" size="sm" onClick={quickSubmit} disabled={!quickReady}>Log ↵</Button>
+              <Button variant="solid" size="sm" onClick={quickSubmit} disabled={!quickReady}>{submitting ? 'Sorting…' : 'Log ↵'}</Button>
             </div>
             <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#4B5563', paddingLeft: 4, flexWrap: 'wrap' }}>
               <span className="quick-hint">Amount anywhere · “/mo” or “/yr” makes it recurring · start with “+” for revenue · category is guessed from words like payroll, contractor, ads</span>
