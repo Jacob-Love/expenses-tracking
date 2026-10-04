@@ -24,12 +24,16 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
   );
 }
 
+const statusBtn = { border: 0, background: 'transparent', padding: 0, fontSize: 13, color: '#9CA3AF', cursor: 'pointer' } as const;
+
 export interface FormState { id: string | null; kind: Kind; name: string; amount: string; category: string; cadence: Cadence; date: string }
 export const blankForm = (): FormState => ({ id: null, kind: 'expense', name: '', amount: '', category: 'Software', cadence: 'once', date: iso(new Date()) });
 export const formFrom = (e: Entry): FormState => ({ id: e.id, kind: e.kind, name: e.name, amount: String(e.amount), category: e.category, cadence: e.cadence, date: e.date });
 
-export function EntryModal({ initial, cats, addCategory, onSubmit, onClose }: {
+export function EntryModal({ initial, cats, addCategory, onSubmit, onClose, status, onStatus }: {
   initial: FormState; cats: (k: Kind) => string[]; addCategory: (k: Kind, name: string) => string; onSubmit: (f: FormState, amount: number) => void; onClose: () => void;
+  /** Set for an existing recurring entry: its status and how to change it. */
+  status?: 'active' | 'paused' | 'cancelled'; onStatus?: (action: 'pause' | 'resume' | 'cancel' | 'restore') => void;
 }) {
   const [f, setF] = useState(initial);
   const [error, setError] = useState('');
@@ -94,8 +98,8 @@ export function EntryModal({ initial, cats, addCategory, onSubmit, onClose }: {
 
         <div style={{ display: 'grid', gap: 6 }}>
           <span style={fieldLabel}>Billing</span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }} role="radiogroup" aria-label="Billing">
-            {([['once', 'One-time'], ['monthly', 'Monthly'], ['annual', 'Annual']] as const).map(([v, label]) => {
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }} role="radiogroup" aria-label="Billing">
+            {([['once', 'One-time'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['annual', 'Annual']] as const).map(([v, label]) => {
               const on = f.cadence === v;
               return <button key={v} type="button" role="radio" aria-checked={on} onClick={() => set({ cadence: v })} style={{ height: 34, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: `1px solid ${on ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)'}`, background: on ? 'rgba(99,102,241,0.16)' : 'var(--surface-4)', color: on ? '#C7D2FE' : '#9CA3AF', transition: 'all .12s' }}>{label}</button>;
             })}
@@ -110,8 +114,16 @@ export function EntryModal({ initial, cats, addCategory, onSubmit, onClose }: {
 
         {error && <div role="alert" style={{ fontSize: 13, color: '#F87171', padding: '8px 12px', borderRadius: 8, background: 'rgba(248,113,113,0.1)' }}>{error}</div>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, paddingTop: 4, flexWrap: 'wrap' }}>
+          {status && onStatus && (
+            <span style={{ marginRight: 'auto', display: 'inline-flex', gap: 14 }}>
+              {status === 'active' && <button type="button" className="hover-white" onClick={() => onStatus('pause')} style={statusBtn}>Pause</button>}
+              {status === 'paused' && <button type="button" className="hover-white" onClick={() => onStatus('resume')} style={{ ...statusBtn, color: '#818CF8' }}>Resume</button>}
+              {status !== 'cancelled' && <button type="button" onClick={() => onStatus('cancel')} style={{ ...statusBtn, color: '#F87171' }}>Cancel subscription</button>}
+              {status === 'cancelled' && <button type="button" className="hover-white" onClick={() => onStatus('restore')} style={{ ...statusBtn, color: '#818CF8' }}>Restore</button>}
+            </span>
+          )}
+          <Button variant="ghost" onClick={onClose}>Close</Button>
           <Button variant="solid" type="submit">{f.id ? 'Save' : 'Add'}</Button>
         </div>
       </form>

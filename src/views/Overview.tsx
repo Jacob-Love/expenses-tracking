@@ -1,16 +1,16 @@
 import { Calendar, Zap } from 'lucide-react';
 import { EmptyState, KpiCard } from '../components/ds.tsx';
 import { cardFlat, cardLit, colHead, h2, mono, signed } from '../components/ui.tsx';
-import { CAD_LABEL, dateLabel, money, monthly, parse, pct, shortDate, type Entry, type Metrics } from '../lib/ledger.ts';
+import { CAD_LABEL, dateLabel, isBilling, money, monthly, pct, shortDate, type Entry, type Metrics } from '../lib/ledger.ts';
 
 export function kpis(entries: Entry[], m: Metrics) {
   const ser = m.series;
   const net = m.revMonth - m.expMonth, netPrev = m.revPrevMonth - m.expPrevMonth;
-  const subsCountAt = (at: Date) => entries.filter((e) => e.kind === 'expense' && e.cadence !== 'once' && e.active !== false && parse(e.date) <= at).length;
-  const revRec = (cad: Entry['cadence']) => entries.filter((e) => e.kind === 'revenue' && e.cadence === cad && e.active !== false).reduce((a, e) => a + monthly(e), 0);
+  const subsCountAt = (at: Date) => entries.filter((e) => e.kind === 'expense' && e.cadence !== 'once' && isBilling(e, at)).length;
+  const revRec = (cad: Entry['cadence']) => entries.filter((e) => e.kind === 'revenue' && e.cadence === cad && isBilling(e, m.today)).reduce((a, e) => a + monthly(e), 0);
   const burnCat = (c: string) => m.activeSubs.filter((e) => e.category === c).reduce((a, e) => a + monthly(e), 0);
   return {
-    mrr: { value: money(m.mrr), delta: pct(m.mrr, m.mrrPrev), prev: money(m.mrrPrev), spark: ser.map((s) => s.rev), breakdown: { aLabel: 'Monthly', aValue: money(revRec('monthly')), bLabel: 'Annual ÷ 12', bValue: money(revRec('annual')) } },
+    mrr: { value: money(m.mrr), delta: pct(m.mrr, m.mrrPrev), prev: money(m.mrrPrev), spark: ser.map((s) => s.rev), breakdown: { aLabel: 'Monthly', aValue: money(revRec('monthly') + revRec('weekly')), bLabel: 'Annual ÷ 12', bValue: money(revRec('annual')) } },
     burn: { value: money(m.burn), delta: pct(m.burn, m.burnPrev), prev: money(m.burnPrev), spark: ser.map((s) => s.exp), breakdown: { aLabel: 'Payroll', aValue: money(burnCat('Payroll')), bLabel: 'Software', bValue: money(burnCat('Software')) } },
     net: { value: money(net), delta: pct(net, netPrev), prev: money(netPrev), spark: ser.map((s) => s.rev - s.exp), breakdown: { aLabel: 'Revenue', aValue: money(m.revMonth), bLabel: 'Expenses', bValue: money(m.expMonth) } },
     subs: { value: String(m.activeSubs.length), delta: m.activeSubs.length - subsCountAt(new Date(m.today.getFullYear(), m.today.getMonth(), 0)), spark: ser.map((s) => subsCountAt(new Date(s.year, s.month + 1, 0))), breakdown: { aLabel: 'Monthly cost', aValue: money(m.burn), bLabel: 'Paused', bValue: String(m.pausedSubs.length) } },
@@ -23,7 +23,7 @@ export function Overview({ entries, m, onEdit }: { entries: Entry[]; m: Metrics;
   const k = kpis(entries, m);
   const ser = m.series, maxV = Math.max(1, ...ser.map((s) => Math.max(s.rev, s.exp)));
   const renewals = m.renewals.slice(0, 7);
-  const renewalsOut = m.renewals.filter((r) => r.kind === 'expense').reduce((a, r) => a + r.amount, 0);
+  const renewalsOut = m.renewals.filter((r) => r.kind === 'expense').reduce((a, r) => a + r.amount * r.count, 0);
   const recent = [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
 
   return (
@@ -80,7 +80,7 @@ export function Overview({ entries, m, onEdit }: { entries: Entry[]; m: Metrics;
                   <div key={r.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '4px 12px', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: '#E5E7EB', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                      <div style={{ fontSize: 11, color: '#6B7280', ...mono }}>{shortDate(r.next)} · {CAD_LABEL[r.cadence]}</div>
+                      <div style={{ fontSize: 11, color: '#6B7280', ...mono }}>{shortDate(r.next)} · {CAD_LABEL[r.cadence]}{r.count > 1 ? ` · ×${r.count}` : ''}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: r.kind === 'revenue' ? 'var(--ok)' : '#EDEDED' }}>{(r.kind === 'revenue' ? '+' : '−') + money(r.amount)}</div>
@@ -93,7 +93,7 @@ export function Overview({ entries, m, onEdit }: { entries: Entry[]; m: Metrics;
               })}
             </div>
           ) : (
-            <EmptyState icon={<Calendar size={18} />} title="Nothing renews in the next 30 days" hint="Monthly and annual entries show up here as their charge date approaches." />
+            <EmptyState icon={<Calendar size={18} />} title="Nothing renews in the next 30 days" hint="Weekly, monthly and annual entries show up here as their charge date approaches." />
           )}
         </div>
       </div>

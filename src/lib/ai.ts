@@ -33,7 +33,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return j;
 }
 
-export async function aiClassify(text: string, cats: { expense: string[]; revenue: string[] }): Promise<ClassifyResult | null> {
+export async function aiClassify(text: string, cats: { expense: string[]; revenue: string[]; known?: string[] }): Promise<ClassifyResult | null> {
   if (!aiAvailable()) return null;
   const input = { text, ...cats };
   try {
