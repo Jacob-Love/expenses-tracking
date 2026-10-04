@@ -103,19 +103,24 @@ export function parseQuick(raw: string): QuickParse | null {
   if (/^(mo|month|monthly|m)$/.test(unit) || /\b(monthly|subscription|sub)\b/i.test(s)) cadence = 'monthly';
   if (/^(yr|year|annual|annually|y)$/.test(unit) || /\b(annual|yearly)\b/i.test(s)) cadence = 'annual';
   let name = s.replace(am[0], ' ').replace(/\b(monthly|annual|yearly|subscription|sub|revenue|income)\b/gi, '').replace(/\s+/g, ' ').trim();
+  // "for frame.io which is for video storage" → "frame.io"
+  name = name.replace(/\s+(which|that|it)\s+(is|was|'s)\b.*$/i, '').replace(/^(for|paid|paying|bought|to)\s+/i, '').replace(/\s+(for|to|on)$/i, '').trim();
   if (!name) name = kind === 'revenue' ? 'Revenue' : 'Expense';
   name = name[0].toUpperCase() + name.slice(1);
   let category: string;
   if (kind === 'revenue') category = /retainer|client|monthly/i.test(raw) && cadence !== 'once' ? 'Retainer' : /product|sale|template|shop/i.test(raw) ? 'Product' : cadence === 'once' ? 'Project' : 'Retainer';
   else if (/payroll|salary|salaries|wage|employee|fte|staff/i.test(raw)) category = 'Payroll';
-  else if (/contractor|freelanc|invoice|agency|consult|editor|video|design work/i.test(raw)) category = 'Contractors';
+  else if (/contractor|freelanc|invoice|agency|consult|editor|video edit|design work/i.test(raw)) category = 'Contractors';
   else if (/\bads?\b|meta|google|tiktok|spend|campaign|boost/i.test(raw)) category = 'Ad spend';
   else category = 'Software';
   return { kind, name, amount, cadence, category };
 }
 
-/** Words the rules place reliably; anything else is worth asking the model about. */
-export const rulesConfident = (s: string) => /payroll|salary|contractor|freelanc|\bads?\b|meta|google|retainer|client|software|tool|hosting|saas/i.test(s);
+// Sample entries from early versions were saved into real browsers. They are
+// recognised by exact name + amount so they can be cleared without touching
+// anything the user logged.
+const SAMPLE_KEYS = new Set(seed(new Date(2000, 0, 1)).map((e) => `${e.name}|${e.amount}`));
+export const isSampleEntry = (e: Pick<Entry, 'name' | 'amount'>) => SAMPLE_KEYS.has(`${e.name}|${e.amount}`);
 
 export interface MonthPoint { label: string; rev: number; exp: number; year: number; month: number }
 export interface Renewal extends Entry { next: Date; days: number; nextIso: string }

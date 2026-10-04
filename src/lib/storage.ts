@@ -17,4 +17,4 @@ export const store = {
   },
 };
 
-export const KEYS = { entries: 'ledger-entries-v1', cats: 'ledger-cats-v1', sidebar: 'ledger-sidebar' };
+export const KEYS = { entries: 'ledger-entries-v1', cats: 'ledger-cats-v1', sidebar: 'ledger-sidebar', sampleCleared: 'ledger-sample-cleared' };

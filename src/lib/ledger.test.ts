@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, iso, metrics, parseQuick, rulesConfident, type Entry } from './ledger.ts';
+import { addMonths, isSampleEntry, iso, metrics, parseQuick, seed, type Entry } from './ledger.ts';
 
 describe('parseQuick', () => {
   it('reads a monthly software subscription', () => {
@@ -25,9 +25,14 @@ describe('parseQuick', () => {
     expect(parseQuick('coffee')!.amount).toBeNaN();
     expect(parseQuick('   ')).toBeNull();
   });
-  it('flags lines the rules cannot place', () => {
-    expect(rulesConfident('Meta ads 300')).toBe(true);
-    expect(rulesConfident('Office chairs 640')).toBe(false);
+  it('strips filler from the name and does not call storage a contractor', () => {
+    expect(parseQuick('For frame.io which is for video storage 15')).toMatchObject({ name: 'Frame.io', amount: 15, category: 'Software' });
+    expect(parseQuick('Video editor 900')).toMatchObject({ category: 'Contractors' });
+  });
+  it('recognises sample entries by name and amount only', () => {
+    expect(seed().every(isSampleEntry)).toBe(true);
+    expect(isSampleEntry({ name: 'Cloud hosting', amount: 99 })).toBe(false);
+    expect(isSampleEntry({ name: 'Frame.io', amount: 15 })).toBe(false);
   });
 });
 
