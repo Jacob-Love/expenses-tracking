@@ -15,7 +15,7 @@ export interface ClassifyInput {
 export interface ClassifyResult {
   kind: 'expense' | 'revenue';
   category: string;
-  cadence: 'once' | 'monthly' | 'annual';
+  cadence: 'once' | 'weekly' | 'monthly' | 'annual';
   name: string;
 }
 
@@ -39,12 +39,12 @@ export function classifyRequest(input: ClassifyInput): CompleteRequest {
       properties: {
         kind: { type: 'STRING', enum: ['expense', 'revenue'] },
         category: { type: 'STRING', enum: [...new Set([...expense, ...revenue])] },
-        cadence: { type: 'STRING', enum: ['once', 'monthly', 'annual'] },
+        cadence: { type: 'STRING', enum: ['once', 'weekly', 'monthly', 'annual'] },
         name: { type: 'STRING' },
       },
       required: ['kind', 'category', 'cadence', 'name'],
     },
-    system: 'You categorize single lines from a small business ledger. Money the business pays out is an expense; money it receives is revenue. Pick the closest category from the list for that kind. Cadence is monthly or annual only when the line says it recurs (subscription, monthly, /mo, yearly and similar, even misspelled); subscription without a period means monthly. The name is the vendor or source, short, without the amount, cadence or date, with the vendor\'s usual capitalization. If the line refers to a name already in the ledger, return that name exactly as listed.',
+    system: 'You categorize single lines from a small business ledger. Money the business pays out is an expense; money it receives is revenue. Pick the closest category from the list for that kind. Cadence is weekly, monthly or annual only when the line says it recurs (weekly, /wk, subscription, monthly, /mo, yearly and similar, even misspelled); subscription without a period means monthly. The name is the vendor or source, short, without the amount, cadence or date, with the vendor\'s usual capitalization. If the line refers to a name already in the ledger, return that name exactly as listed.',
     prompt: `Expense categories: ${expense.join(', ')}\nRevenue categories: ${revenue.join(', ')}${known.length ? `\nNames already in the ledger: ${known.join(' | ')}` : ''}\nLine: ${clean(input.text, MAX_TEXT)}`,
   };
 }
@@ -59,7 +59,7 @@ export function parseClassify(out: string, input: ClassifyInput): ClassifyResult
     return {
       kind,
       category: hit || cats[0],
-      cadence: j.cadence === 'monthly' || j.cadence === 'annual' ? j.cadence : 'once',
+      cadence: j.cadence === 'weekly' || j.cadence === 'monthly' || j.cadence === 'annual' ? j.cadence : 'once',
       name: clean(j.name, 80).trim(),
     };
   } catch {

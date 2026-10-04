@@ -44,7 +44,7 @@ describe('classify prompt + parsing', () => {
 
   it('accepts valid output and repairs a category from the wrong list', () => {
     expect(parseClassify('{"kind":"expense","category":"office","cadence":"once","name":"Office chairs"}', input)).toEqual({ kind: 'expense', category: 'Office', cadence: 'once', name: 'Office chairs' });
-    expect(parseClassify('{"kind":"expense","category":"Retainer","cadence":"weekly","name":"x"}', input)).toMatchObject({ category: 'Payroll', cadence: 'once' });
+    expect(parseClassify('{"kind":"expense","category":"Retainer","cadence":"fortnightly","name":"x"}', input)).toMatchObject({ category: 'Payroll', cadence: 'once' });
     expect(parseClassify('not json', input)).toBeNull();
   });
 });

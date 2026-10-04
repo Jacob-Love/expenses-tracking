@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
-import { CAD_LABEL, dateLabel, money2, type Entry } from '../lib/ledger.ts';
+import { CAD_LABEL, dateLabel, money2, statusOf, type Entry } from '../lib/ledger.ts';
 
 export const cardLit: CSSProperties = { position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'var(--surface-2)', backgroundImage: 'radial-gradient(130% 130% at 0% 0%, rgba(255,255,255,0.05), transparent 55%)', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.05)', minWidth: 0 };
 export const cardFlat: CSSProperties = { position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'var(--surface-2)', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.05)' };
@@ -42,7 +42,7 @@ export function LedgerTable({ head, rows, onEdit, onRemove, empty, revenue }: { 
         <div key={e.id} className="row-hover" style={{ display: 'grid', gridTemplateColumns: LEDGER_COLS, gap: 12, padding: '10px 20px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background-color .12s' }}>
           <button type="button" onClick={() => onEdit(e)} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, cursor: 'pointer', border: 0, background: 'transparent', padding: 0, font: 'inherit', textAlign: 'left' }}>
             <span style={{ color: '#E5E7EB', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</span>
-            {revenue && e.active === false && <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: 'var(--text-4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '0 6px' }}>PAUSED</span>}
+            {e.cadence !== 'once' && statusOf(e) !== 'active' && <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: 'var(--text-4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '0 6px' }}>{statusOf(e).toUpperCase()}</span>}
           </button>
           <span style={{ color: '#9CA3AF', fontSize: 13 }}>{e.category}</span>
           <span style={{ color: '#9CA3AF', fontSize: 12, ...mono }}>{dateLabel(e.date)}</span>

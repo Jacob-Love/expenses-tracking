@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, findKnown, parseDate, statedCadence, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
+import { addMonths, findKnown, parseCommand, parseDate, setStatus, statedCadence, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
 
 describe('parseQuick', () => {
   it('reads a monthly software subscription', () => {
@@ -141,5 +141,61 @@ describe('billing words', () => {
     expect(statedCadence('figma 40/mo')?.cadence).toBe('monthly');
     expect(statedCadence('figma 400 per year')?.cadence).toBe('annual');
     expect(statedCadence('figma 40')).toBeNull();
+  });
+});
+
+describe('run rate, weekly, pause and cancel', () => {
+  const now = new Date(2026, 9, 4);
+  const sub = (p: Partial<Entry>): Entry => ({ id: Math.random().toString(36), kind: 'expense', name: 'x', amount: 100, category: 'Software', cadence: 'monthly', date: '2026-01-10', active: true, ...p });
+
+  it('counts subscriptions dated at their next renewal in the run rate', () => {
+    const m = metrics([sub({ amount: 375, date: '2026-10-22' }), sub({ amount: 15, date: '2026-10-04' })], now);
+    expect(m.burn).toBe(390);
+    expect(m.expMonth).toBe(390);
+  });
+
+  it('weekly is 52/12 per month in the run rate and real charges in the chart', () => {
+    const m = metrics([sub({ cadence: 'weekly', amount: 120, date: '2026-09-01' })], now);
+    expect(m.burn).toBeCloseTo(520);
+    expect(m.series[10].exp).toBe(600); // Sep 2026: 1, 8, 15, 22, 29
+    expect(m.renewals[0].count).toBe(5); // Oct 6 … Nov 3
+    expect(parseQuick('Cleaner 120/wk')).toMatchObject({ cadence: 'weekly', amount: 120 });
+    expect(parseQuick('Cleaner weekly 120')).toMatchObject({ cadence: 'weekly', name: 'Cleaner' });
+  });
+
+  it('pausing keeps past charges and stops future ones; resume brings them back', () => {
+    let e = sub({});
+    e = setStatus(e, 'pause', '2026-08-01');
+    let m = metrics([e], now);
+    expect(m.series[6].exp).toBe(100); // Jul charged
+    expect(m.series[9].exp).toBe(0); // Aug paused
+    expect(m.burn).toBe(0);
+    expect(m.pausedSubs).toHaveLength(1);
+    e = setStatus(e, 'resume', '2026-09-15');
+    m = metrics([e], now);
+    expect(m.series[9].exp).toBe(0); // Sep 10 fell inside the pause
+    expect(m.series[11].exp).toBe(100); // Oct 10 billed again
+    expect(m.burn).toBe(100);
+  });
+
+  it('cancelling keeps history, drops the run rate, and can be restored', () => {
+    const e = setStatus(sub({}), 'cancel', '2026-09-20');
+    const m = metrics([e], now);
+    expect(m.series[10].exp).toBe(100); // Sep 10 charged before cancel
+    expect(m.series[11].exp).toBe(0);
+    expect(m.burn).toBe(0);
+    expect(m.cancelledSubs).toHaveLength(1);
+    expect(m.renewals).toHaveLength(0);
+    expect(metrics([setStatus(e, 'restore', '2026-10-04')], now).burn).toBe(100);
+  });
+
+  it('reads cancel / pause / resume commands against existing subscriptions', () => {
+    const list = [sub({ name: 'Frame.io' }), sub({ name: 'Figma', active: false, pauses: [{ from: '2026-09-01' }] })];
+    expect(parseCommand('cancel frame io', list, now)).toMatchObject({ verb: 'cancel', entry: { name: 'Frame.io' }, date: '2026-10-04' });
+    expect(parseCommand('resume figma', list, now)?.entry?.name).toBe('Figma');
+    expect(parseCommand('cancel netflix', list, now)?.entry).toBeNull();
+    expect(parseCommand('cancelled frame.io on oct 1', list, now)?.date).toBe('2026-10-01');
+    expect(parseCommand('Frame.io 15/mo', list, now)).toBeNull();
+    expect(parseCommand('Stop sign install 400', list, now)?.entry).toBeNull();
   });
 });
