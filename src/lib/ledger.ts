@@ -133,6 +133,37 @@ export function parseDate(text: string, now = new Date()): { date: string; text:
   return null;
 }
 
+
+// ── Billing words ───────────────────────────────────────────────────────────
+// What the line says about billing, typos included ("subcsription", "montly").
+// When the line says it, that wins over any guess, the model's included.
+
+function editDistance(a: string, b: string) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+const CADENCE_WORDS: [string, Cadence, number][] = [
+  ['subscription', 'monthly', 2], ['subscriptions', 'monthly', 2], ['monthly', 'monthly', 1], ['recurring', 'monthly', 2],
+  ['annual', 'annual', 1], ['annually', 'annual', 1], ['yearly', 'annual', 1],
+];
+
+export function statedCadence(text: string): { cadence: Cadence; words: string[] } | null {
+  const t = text.toLowerCase();
+  if (/\b(one[- ]?time|once|one[- ]?off)\b/.test(t)) return { cadence: 'once', words: (t.match(/\b(one[- ]?time|once|one[- ]?off)\b/g) || []) };
+  if (/\d\s*k?\s*(\/|per\s+|a\s+|every\s+)\s*(yr|year|y)\b|\b(per|a|every)\s+year\b/.test(t)) return { cadence: 'annual', words: [] };
+  if (/\d\s*k?\s*(\/|per\s+|a\s+|every\s+)\s*(mo|month|m)\b|\b(per|a|every)\s+month\b/.test(t)) return { cadence: 'monthly', words: [] };
+  const words = t.split(/[^a-z]+/).filter(Boolean);
+  if (words.some((w) => w === 'sub' || w === 'subs')) return { cadence: 'monthly', words: words.filter((w) => w === 'sub' || w === 'subs') };
+  for (const [target, cadence, max] of CADENCE_WORDS) {
+    const hits = words.filter((w) => w.length >= target.length - max && editDistance(w, target) <= max);
+    if (hits.length) return { cadence, words: hits };
+  }
+  return null;
+}
+
 export function parseQuick(raw: string, now = new Date()): QuickParse | null {
   let s = raw.trim();
   if (!s) return null;
@@ -146,11 +177,12 @@ export function parseQuick(raw: string, now = new Date()): QuickParse | null {
   if (!am) return { kind, name: s, amount: NaN, cadence: 'once', category: kind === 'revenue' ? 'Project' : 'Software', ...(date ? { date } : {}) };
   let amount = parseFloat(am[1].replace(/,/g, ''));
   if (am[2]) amount *= 1000;
-  let cadence: Cadence = 'once';
   const unit = (am[3] || '').toLowerCase();
-  if (/^(mo|month|monthly|m)$/.test(unit) || /\b(monthly|subscription|sub)\b/i.test(s)) cadence = 'monthly';
-  if (/^(yr|year|annual|annually|y)$/.test(unit) || /\b(annual|yearly)\b/i.test(s)) cadence = 'annual';
-  let name = s.replace(am[0], ' ').replace(/\b(one[- ]?time|once|monthly|annual|yearly|subscription|sub|revenue|income)\b/gi, '').replace(/\s+/g, ' ').trim();
+  const said = statedCadence(s);
+  const cadence: Cadence = said ? said.cadence : /^(mo|month|monthly|m)$/.test(unit) ? 'monthly' : /^(yr|year|annual|annually|y)$/.test(unit) ? 'annual' : 'once';
+  let name = s.replace(am[0], ' ');
+  for (const w of said?.words || []) name = name.replace(new RegExp(`\\b${w.replace(/[^a-z -]/g, '')}\\b`, 'i'), ' ');
+  name = name.replace(/\b(one[- ]?(time|off)|once|monthly|annual|yearly|subscriptions?|subs?|recurring|revenue|income)\b/gi, '').replace(/\s+/g, ' ').trim();
   // "for frame.io which is for video storage" → "frame.io"
   name = name.replace(/\s+(which|that|it)\s+(is|was|'s)\b.*$/i, '').replace(/^(for|paid|paying|bought|to)\s+/i, '').replace(/\s+(for|to|on)$/i, '').trim();
   if (!name) name = kind === 'revenue' ? 'Revenue' : 'Expense';

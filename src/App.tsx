@@ -3,7 +3,7 @@ import { Activity, CreditCard, LayoutDashboard, PanelLeft, PanelLeftClose, Plus,
 import { Button, SidebarNavItem } from './components/ds.tsx';
 import { h2 } from './components/ui.tsx';
 import { aiAvailable, aiClassify, aiModel, aiReport, browserKey, loadAiStatus, setBrowserKey, type AiStatus } from './lib/ai.ts';
-import { CAD_LABEL, EXP_CATS, REV_CATS, iso, metrics, money, money2, dateLabel, findKnown, isSampleEntry, knownNames, normName, parseDate, parseQuick, reportFacts, suggestNames, uid, type Entry, type Kind } from './lib/ledger.ts';
+import { CAD_LABEL, EXP_CATS, REV_CATS, iso, metrics, money, money2, dateLabel, findKnown, isSampleEntry, knownNames, normName, parseDate, parseQuick, statedCadence, reportFacts, suggestNames, uid, type Entry, type Kind } from './lib/ledger.ts';
 import { KEYS, store } from './lib/storage.ts';
 import { Expenses, type ExpenseFilters } from './views/Expenses.tsx';
 import { EntryModal, SettingsModal, blankForm, formFrom, type FormState } from './views/Modals.tsx';
@@ -131,12 +131,13 @@ export default function App() {
     // A custom category named in the line wins over the guess.
     const hit = cats(p.kind).find((c) => !EXP_CATS.includes(c) && !REV_CATS.includes(c) && text.toLowerCase().includes(c.toLowerCase()));
     if (hit) p.category = hit;
-    const base = ai ? { ...p, kind: ai.kind, category: hit || ai.category, cadence: ai.cadence || p.cadence, name: ai.name || p.name } : p;
+    const said = statedCadence(text)?.cadence;
+    // Billing words in the line beat the model's guess; it only fills the gap.
+    const base = ai ? { ...p, kind: ai.kind, category: hit || ai.category, cadence: said || ai.cadence || p.cadence, name: ai.name || p.name } : p;
     const match = findKnown(p.name, entries) || (ai?.name ? findKnown(ai.name, entries) : null);
     if (!match) return { ...base, matched: false };
     // "frame.io 15" for a monthly vendor means this month's charge of that subscription.
-    const saysCadence = /\/\s*(mo|m|month|yr|y|year)\b|\b(monthly|annual|yearly|per month|per year|a month|a year|once|one[- ]time)\b/i.test(text);
-    return { ...base, kind: match.kind, category: hit || match.category, name: match.name, cadence: saysCadence ? base.cadence : match.cadence, matched: true };
+    return { ...base, kind: match.kind, category: hit || match.category, name: match.name, cadence: said || match.cadence, matched: true };
   };
   const qp = preview(quick, quickAI);
   const quickReady = !!(qp && qp.amount > 0) && !submitting;

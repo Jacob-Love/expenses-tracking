@@ -44,7 +44,7 @@ export function classifyRequest(input: ClassifyInput): CompleteRequest {
       },
       required: ['kind', 'category', 'cadence', 'name'],
     },
-    system: 'You categorize single lines from a small business ledger. Money the business pays out is an expense; money it receives is revenue. Pick the closest category from the list for that kind. Cadence is monthly or annual only when the line says it recurs. The name is the vendor or source, short, without the amount, cadence or date, with the vendor\'s usual capitalization. If the line refers to a name already in the ledger, return that name exactly as listed.',
+    system: 'You categorize single lines from a small business ledger. Money the business pays out is an expense; money it receives is revenue. Pick the closest category from the list for that kind. Cadence is monthly or annual only when the line says it recurs (subscription, monthly, /mo, yearly and similar, even misspelled); subscription without a period means monthly. The name is the vendor or source, short, without the amount, cadence or date, with the vendor\'s usual capitalization. If the line refers to a name already in the ledger, return that name exactly as listed.',
     prompt: `Expense categories: ${expense.join(', ')}\nRevenue categories: ${revenue.join(', ')}${known.length ? `\nNames already in the ledger: ${known.join(' | ')}` : ''}\nLine: ${clean(input.text, MAX_TEXT)}`,
   };
 }

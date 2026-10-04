@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, findKnown, parseDate, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
+import { addMonths, findKnown, parseDate, statedCadence, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
 
 describe('parseQuick', () => {
   it('reads a monthly software subscription', () => {
@@ -121,5 +121,25 @@ describe('dates in quick-add', () => {
   });
   it('drops cadence words from the name', () => {
     expect(q('frame.io 40 one-time')).toMatchObject({ name: 'Frame.io', cadence: 'once' });
+  });
+});
+
+describe('billing words', () => {
+  it('reads subscription and typos as monthly and strips them from the name', () => {
+    expect(parseQuick('Frame.io subscription 15')).toMatchObject({ name: 'Frame.io', cadence: 'monthly' });
+    expect(parseQuick('frame.io subcsription 15')).toMatchObject({ name: 'Frame.io', cadence: 'monthly' });
+    expect(parseQuick('Notion montly 10')).toMatchObject({ name: 'Notion', cadence: 'monthly' });
+    expect(parseQuick('Analytics anual 1188')).toMatchObject({ name: 'Analytics', cadence: 'annual' });
+  });
+  it('does not mistake look-alike words', () => {
+    expect(statedCadence('Subcontractor invoice 900')).toBeNull();
+    expect(statedCadence('Subway lunch 12')).toBeNull();
+    expect(parseQuick('Subcontractor invoice 900')).toMatchObject({ cadence: 'once', category: 'Contractors' });
+  });
+  it('one-time wins and units still work', () => {
+    expect(statedCadence('figma subscription 40 one-time')?.cadence).toBe('once');
+    expect(statedCadence('figma 40/mo')?.cadence).toBe('monthly');
+    expect(statedCadence('figma 400 per year')?.cadence).toBe('annual');
+    expect(statedCadence('figma 40')).toBeNull();
   });
 });
