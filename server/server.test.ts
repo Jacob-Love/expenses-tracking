@@ -3,7 +3,7 @@ import { PassThrough } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { geminiComplete } from './gemini.ts';
 import { classifyRequest, parseClassify } from './prompts.ts';
-import { handleAi } from './handler.ts';
+import { handleAi, handleAiWeb } from './handler.ts';
 
 const ok = (text: string) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'thinking…', thought: true }, { text }] } }] }), { status: 200 });
 
@@ -75,5 +75,19 @@ describe('handleAi', () => {
   });
   it('does not expose a generic prompt endpoint', async () => {
     expect((await call('POST', '/api/ai/complete', { prompt: 'anything' }, { GEMINI_API_KEY: 'k' })).status).toBe(404);
+  });
+});
+
+describe('handleAiWeb (Netlify)', () => {
+  it('serves status and rejects unknown routes', async () => {
+    const r = await handleAiWeb(new Request('https://x.netlify.app/api/ai/status'), { GEMINI_API_KEY: 'k' });
+    expect(await r.json()).toEqual({ server: true, model: 'gemini-3.1-flash-lite' });
+    expect((await handleAiWeb(new Request('https://x.netlify.app/api/ai/nope', { method: 'POST', body: '{}' }), { GEMINI_API_KEY: 'k' })).status).toBe(404);
+  });
+  it('rejects oversized and malformed bodies', async () => {
+    const big = new Request('https://x/api/ai/report', { method: 'POST', body: 'x'.repeat(20000) });
+    expect((await handleAiWeb(big, { GEMINI_API_KEY: 'k' })).status).toBe(413);
+    const bad = new Request('https://x/api/ai/report', { method: 'POST', body: '{nope' });
+    expect((await handleAiWeb(bad, { GEMINI_API_KEY: 'k' })).status).toBe(400);
   });
 });

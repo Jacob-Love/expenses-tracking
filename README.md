@@ -15,12 +15,19 @@ cp .env.example .env        # add GEMINI_API_KEY
 npm run dev                 # http://localhost:5173
 ```
 
-Production:
+## Deploy (Netlify)
 
-```bash
-npm run build
-GEMINI_API_KEY=... npm start   # serves dist/ + /api/ai on $PORT (default 3000)
-```
+1. Netlify → Add new site → Import from GitHub → `Jacob-Love/expenses-tracking`.
+   Build settings come from `netlify.toml` (build `npm run build`, publish `dist`).
+2. Site configuration → Environment variables → add `GEMINI_API_KEY`
+   (scope must include **Functions**). Optional: `GEMINI_MODEL`.
+3. Deploy. `/api/ai/*` runs as a Netlify Function (`netlify/functions/ai.ts`);
+   nothing has to stay running anywhere.
+
+Changing an environment variable needs a redeploy to take effect.
+
+Other hosts: `npm run build && GEMINI_API_KEY=... npm start` serves `dist/` and
+the proxy from one Node process on `$PORT`.
 
 `npm test` runs the parser/metrics/proxy tests; `npm run typecheck` runs tsc.
 
