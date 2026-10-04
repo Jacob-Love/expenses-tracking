@@ -1,0 +1,85 @@
+/* Spectra color.
+   Two surfaces, one palette. The marketing site (--bg #0B0C0E) sits a hair
+   warmer/bluer than the app (--surface-0 #0A0A0A) because the site carries a
+   violet ambient wash and the app is deliberately colourless. Both are
+   near-black; both spend accent violet on interaction only. */
+:root {
+  /* ── Marketing surfaces (spectra.site) ─────────────────────────────── */
+  --bg: #0B0C0E;
+  --bg-raised: #121316;
+  --bg-hover: #17181C;
+  --bg-inset: #08090A;
+
+  /* ── App surfaces — five deliberate neutral steps (R=G=B). ─────────── */
+  --surface-0: #0A0A0A; /* app/page ground */
+  --surface-1: #121212; /* sidebar, sunken wells */
+  --surface-2: #171717; /* default card */
+  --surface-3: #1F1F1F; /* raised card, popover, hover */
+  --surface-4: #272727; /* input, chip, active row */
+
+  /* ── Text ramp ─────────────────────────────────────────────────────── */
+  --text: #F7F8F8;
+  --text-2: #D0D6E0;
+  --text-3: #8A8F98;
+  --text-4: #62666D;
+  --app-fg: #EDEDED;
+  --app-fg-muted: #9B9B9B;
+
+  /* ── Hairlines ─────────────────────────────────────────────────────── */
+  --line: rgba(255, 255, 255, 0.06);
+  --line-2: rgba(255, 255, 255, 0.10);
+  --line-3: rgba(255, 255, 255, 0.16);
+  --border-hairline: rgba(255, 255, 255, 0.07); /* app default separation */
+  --border-strong: rgba(255, 255, 255, 0.14);   /* app emphasis / focus-adjacent */
+
+  /* ── Accent. One violet, interaction only. ─────────────────────────── */
+  --accent: #6E56F8;          /* marketing */
+  --accent-fg: #fff;
+  --accent-dim: rgba(110, 86, 248, 0.12);
+  --accent-line: rgba(110, 86, 248, 0.32);
+  --primary: #6366F1;         /* app indigo */
+  --primary-hover: #4F46E5;
+  --focus-ring: #818CF8;
+
+  /* ── Semantic. Data meaning, never decoration. ─────────────────────── */
+  --ok: #34D399;
+  --ok-dim: rgba(52, 211, 153, 0.10);
+  --warn: #F5B544;
+  --warn-dim: rgba(245, 181, 68, 0.10);
+  --bad: #F35B5B;
+  --bad-dim: rgba(243, 91, 91, 0.10);
+  --app-success: #34D399;
+  --app-warning: #F59E0B;
+  --app-danger: #F87171;
+
+  /* ── Metric thresholds (ROAS colouring, used across both surfaces) ─── */
+  --roas-good: #34D399;   /* >= 3.0x */
+  --roas-watch: #F59E0B;  /* 2.5 – 3.0x */
+  --roas-bad: #F87171;    /* < 2.5x */
+  --roas-none: #6B7280;   /* no data */
+
+  /* ── Ambient washes ────────────────────────────────────────────────── */
+  --glow-violet: radial-gradient(50% 50% at 50% 50%, rgba(110, 86, 248, 0.13), transparent 70%); /* @kind other */
+  --glow-emerald: radial-gradient(50% 50% at 50% 50%, rgba(52, 211, 153, 0.055), transparent 70%); /* @kind other */
+  --page-lift: radial-gradient(80% 50% at 50% -10%, rgba(255, 255, 255, 0.035), transparent 70%); /* @kind other */
+  --page-vignette: radial-gradient(120% 80% at 50% 100%, transparent 55%, rgba(0, 0, 0, 0.35)); /* @kind other */
+}
+
+/* The one light chapter. Ground Truth on the marketing site renders on
+   paper — a local re-declaration of the token set, not a new palette. */
+.band-light {
+  --bg: #F4F3F0;
+  --bg-inset: #FFFFFF;
+  --bg-hover: #ECEBE7;
+  --text: #0C0D10;
+  --text-2: #41444C;
+  --text-3: #5F636D;
+  --text-4: #8A8E98;
+  --line: rgba(12, 13, 16, 0.10);
+  --line-2: rgba(12, 13, 16, 0.16);
+  --line-3: rgba(12, 13, 16, 0.24);
+  --accent-line: rgba(110, 86, 248, 0.35);
+  background: #F4F3F0;
+  color: var(--text);
+  border-block: 1px solid rgba(0, 0, 0, 0.08);
+}

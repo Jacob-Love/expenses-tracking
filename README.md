@@ -1,25 +1,57 @@
-# CODING AGENTS: READ THIS FIRST
+# Ledger — business expense & revenue tracker
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+Implementation of the Claude Design handoff in `project/Expense Tracker.dc.html`
+(design history in `chats/`, original bundle notes in `HANDOFF.md`).
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+Log one-time charges, subscriptions, and recurring revenue in one line
+("Design tool 24/mo", "+Retainer client 02 4500/mo"); see run rate, a 12-month
+P&L, upcoming renewals, and a model-written monthly report.
 
-## What you should do — IMPORTANT
+## Run
 
-**Read the chat transcripts first.** There are 1 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+```bash
+npm install
+cp .env.example .env        # add GEMINI_API_KEY
+npm run dev                 # http://localhost:5173
+```
 
-**Read `project/Expense Tracker.dc.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+Production:
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+```bash
+npm run build
+GEMINI_API_KEY=... npm start   # serves dist/ + /api/ai on $PORT (default 3000)
+```
 
-## About the design files
+`npm test` runs the parser/metrics/proxy tests; `npm run typecheck` runs tsc.
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+## Gemini
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+- Model defaults to `gemini-3.1-flash-lite` (override with `GEMINI_MODEL`).
+  The prototype used `gemini-2.0-flash-lite`, which Google shut down on 2026-06-01.
+- Thinking is set explicitly (`minimal` for categorizing, `low` for the report).
+  Gemini 3.x defaults to `high`, which costs more and is slower.
+- The key lives on the server. The browser calls `/api/ai/classify` and
+  `/api/ai/report` only, and the server builds the prompts, so the proxy can't
+  be used as a general LLM endpoint. Categories are constrained by a JSON
+  schema and checked again after the response comes back.
+- The Model panel in the sidebar also accepts a key that stays in that browser only
+  and overrides the server key there. That's handy for static hosting with no server.
+- With no key, quick-add still works: the rules handle categories, and the model
+  is only asked about lines the rules can't place.
 
-## Bundle contents
+## Data
 
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `Business Expense Tracker App` project files (HTML prototypes, assets, components)
+Entries, custom categories, and sidebar state are kept in `localStorage`
+(`ledger-entries-v1`, `ledger-cats-v1`). The first load seeds sample data.
+
+## Layout
+
+```
+server/gemini.ts    REST call to Gemini (shared by server + browser-key path)
+server/prompts.ts   the two prompts, input limits, output validation
+server/handler.ts   /api/ai/* — mounted by vite.config.ts and server/index.ts
+src/lib/ledger.ts   entry model, quick-add parser, metrics
+src/components/     Spectra DS components (ported from project/_ds) + shared UI
+src/views/          Overview, Expenses, Subscriptions, Revenue, modals
+src/styles/spectra/ design tokens copied from the DS bundle
+```

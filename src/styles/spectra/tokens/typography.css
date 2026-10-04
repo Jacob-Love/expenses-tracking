@@ -1,0 +1,76 @@
+/* Spectra type.
+   Marketing runs a big editorial scale (88 / 56 / 18); the app runs a
+   7-step UI scale (11 → 36) with line-heights baked in so vertical rhythm
+   can't drift. The audit that produced the app scale found 22 sizes; if a
+   size isn't here it shouldn't be in a component. */
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-app: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono-app: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Marketing scale */
+  --t-display-size: 88px;      --t-display-lh: 1.02; /* @kind other */  --t-display-ls: -3.2px;
+  --t-display-stack-size: 66px;--t-display-stack-lh: 1.05; /* @kind other */ --t-display-stack-ls: -2.3px;
+  --t-h2-size: 56px;           --t-h2-lh: 1.05; /* @kind other */       --t-h2-ls: -1.9px;
+  --t-h3-size: 22px;           --t-h3-lh: 1.28; /* @kind other */       --t-h3-ls: -0.46px;
+  --t-num-size: 46px;          --t-num-lh: 1.03; /* @kind other */      --t-num-ls: -1.9px;
+  --t-lede-size: 18px;         --t-lede-lh: 28px;     --t-lede-ls: -0.24px;
+  --t-body-size: 15.5px;       --t-body-lh: 24px;     --t-body-ls: -0.1px;
+  --t-sm-size: 14px;           --t-sm-lh: 21px;       --t-sm-ls: -0.13px;
+  --t-label-size: 11px;        --t-label-lh: 16px;    --t-label-ls: 1.6px;
+  --t-micro-size: 10px;        --t-micro-lh: 14px;    --t-micro-ls: 1.4px;
+
+  /* App UI scale — 7 steps + one hairline step above */
+  --ui-2xs: 11px;  --ui-2xs-lh: 16px;  --ui-2xs-ls: 0.01em;
+  --ui-xs: 12px;   --ui-xs-lh: 16px;
+  --ui-sm: 13px;   --ui-sm-lh: 18px;
+  --ui-base: 14px; --ui-base-lh: 20px;
+  --ui-lg: 16px;   --ui-lg-lh: 24px;
+  --ui-xl: 20px;   --ui-xl-lh: 28px;   --ui-xl-ls: -0.01em;
+  --ui-2xl: 28px;  --ui-2xl-lh: 34px;  --ui-2xl-ls: -0.02em;
+  --ui-3xl: 36px;  --ui-3xl-lh: 42px;  --ui-3xl-ls: -0.025em;
+
+  --weight-regular: 400; /* @kind other */
+  --weight-medium: 500; /* @kind other */
+  --weight-semibold: 600; /* @kind other */
+  --weight-bold: 700; /* @kind other */
+
+  /* Base body: 14/21, -0.16px tracking on the root */
+  --body-size: 14px;
+  --body-lh: 21px; /* @kind other */
+  --body-ls: -0.16px; /* @kind other */
+}
+
+/* Type utility classes — carried verbatim from the product stylesheets. */
+.t-display { font-size: var(--t-display-size); line-height: var(--t-display-lh); letter-spacing: var(--t-display-ls); font-weight: 500 }
+.t-display-stack { font-size: var(--t-display-stack-size); line-height: var(--t-display-stack-lh); letter-spacing: var(--t-display-stack-ls); font-weight: 500; white-space: nowrap }
+.t-h2 { font-size: var(--t-h2-size); line-height: var(--t-h2-lh); letter-spacing: var(--t-h2-ls); font-weight: 500 }
+.t-h3 { font-size: var(--t-h3-size); line-height: var(--t-h3-lh); letter-spacing: var(--t-h3-ls); font-weight: 500 }
+.t-num { font-size: var(--t-num-size); line-height: var(--t-num-lh); letter-spacing: var(--t-num-ls); font-weight: 500; font-variant-numeric: tabular-nums }
+.t-lede { font-size: var(--t-lede-size); line-height: var(--t-lede-lh); letter-spacing: var(--t-lede-ls); color: var(--text-2) }
+.t-body { font-size: var(--t-body-size); line-height: var(--t-body-lh); letter-spacing: var(--t-body-ls); color: var(--text-2) }
+.t-sm { font-size: var(--t-sm-size); line-height: var(--t-sm-lh); letter-spacing: var(--t-sm-ls); color: var(--text-3) }
+.t-label { font-size: var(--t-label-size); line-height: var(--t-label-lh); letter-spacing: var(--t-label-ls); text-transform: uppercase; color: var(--text-3) }
+.t-micro { font-size: var(--t-micro-size); line-height: var(--t-micro-lh); letter-spacing: var(--t-micro-ls); text-transform: uppercase; color: var(--text-4) }
+.t-display, .t-display-stack, .t-h2, .t-h3 { text-wrap: balance }
+.t-lede, .t-body { text-wrap: pretty }
+.dim { color: var(--text-3) }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0 }
+.tnum { font-variant-numeric: tabular-nums }
+/* hero display gradient — white into gray */
+.grad-display { background: linear-gradient(135deg, #FFFFFF 30%, #9B9BA3 100%); -webkit-background-clip: text; background-clip: text; color: transparent }
+
+@media (min-width: 901px) and (max-width: 1200px) {
+  .t-display { font-size: 68px; letter-spacing: -2.3px }
+  .t-display-stack { font-size: 52px; letter-spacing: -1.7px }
+  .t-h2 { font-size: 44px; letter-spacing: -1.4px }
+}
+@media (max-width: 900px) {
+  .t-display { font-size: 42px; letter-spacing: -1.3px }
+  .t-display-stack { font-size: 36px; letter-spacing: -1.2px; white-space: normal }
+  .t-h2 { font-size: 32px; letter-spacing: -1px }
+  .t-h3 { font-size: 19px }
+  .t-lede { font-size: 16.5px; line-height: 26px }
+  .t-num { font-size: 34px; letter-spacing: -1.1px }
+}

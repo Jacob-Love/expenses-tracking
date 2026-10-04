@@ -1,0 +1,43 @@
+/* Radii, borders, shadows, textures.
+   Radii are small and deliberate: the marketing site tops out at 8px for
+   content chrome (12px for plan cards, 18px for the floating nav pill);
+   the app collapses everything above lg onto 14px so cards can't drift. */
+:root {
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 8px;
+  --r-card: 12px;   /* plan / stat / includes cards */
+  --r-pill: 18px;   /* floating nav pill */
+  --r-full: 999px;
+
+  --app-r-sm: 6px;
+  --app-r: 8px;
+  --app-r-lg: 10px;
+  --app-r-xl: 14px; /* xl / 2xl / 3xl all resolve here */
+
+  /* App shadow set */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 0 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-raised: 0 4px 16px -4px rgba(0, 0, 0, 0.45), 0 1px 0 0 rgba(255, 255, 255, 0.04) inset;
+  --shadow-pop: 0 12px 40px -12px rgba(0, 0, 0, 0.7);
+  /* Marketing */
+  --shadow-frame: 0 30px 80px rgba(0, 0, 0, 0.5);
+  --shadow-frame-glow: 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 60px rgba(110, 86, 248, 0.07);
+  --shadow-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.6);
+
+  /* The two surface gradients that make a card read as lit rather than flat */
+  --surface-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)); /* @kind other */
+  --surface-corner: radial-gradient(120% 120% at 0% 0%, rgba(255, 255, 255, 0.05), transparent 55%); /* @kind other */
+  --accent-cap: radial-gradient(70% 55% at 50% 0%, rgba(110, 86, 248, 0.09), transparent 72%); /* @kind other */
+
+  /* Backgrounds */
+  --dotgrid: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0); /* @kind other */
+  --dotgrid-size: 26px 26px; /* @kind other */
+  --linegrid-size: 80px 80px; /* @kind other */
+}
+
+.dotgrid { background-image: var(--dotgrid); background-size: var(--dotgrid-size) }
+.linegrid { background-image: linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px), linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px); background-size: var(--linegrid-size) }
+.mask-b { -webkit-mask-image: linear-gradient(#000 20%, transparent 92%); mask-image: linear-gradient(#000 20%, transparent 92%) }
+.mask-x { -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent) }

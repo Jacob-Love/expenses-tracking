@@ -1,0 +1,33 @@
+/* App-level styles from the prototype's <helmet>, plus the hover states the
+   prototype expressed as style-hover attributes. */
+html, body { margin: 0; background: #0A0A0A; color: #EDEDED; font-family: 'Inter Tight', system-ui, sans-serif; }
+a { color: #818CF8; text-decoration: none }
+a:hover { color: #F7F8F8 }
+input, select, button { font-family: inherit }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #818CF8; outline-offset: 2px; border-radius: 6px }
+::placeholder { color: #62666D }
+select option { background: #1F1F1F; color: #EDEDED }
+@keyframes ledgerFadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.fade-up { animation: ledgerFadeUp .3s cubic-bezier(.25,1,.5,1) }
+.fade-up-fast { animation: ledgerFadeUp .2s cubic-bezier(.25,1,.5,1) }
+
+.hover-white:hover { color: #fff !important }
+.icon-btn:hover { color: #fff !important; background: rgba(255,255,255,0.06) !important }
+.del-btn:hover { color: #F87171 !important; background: rgba(248,113,113,0.1) !important }
+.row-hover:hover { background: rgba(255,255,255,0.02) }
+.sub-card:hover { border-color: rgba(255,255,255,0.12) !important; transform: translateY(-2px) }
+.nav-item:hover { color: #E5E7EB }
+.nav-item[aria-current='page']:hover { color: #fff }
+
+.ledger-split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 12px }
+@media (max-width: 900px) { .ledger-split { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 640px) {
+  .ledger-main { padding: 16px !important }
+  .quick-hint { display: none !important }
+  .quick-preview .qp-meta { display: none }
+  .pl-net { display: none }
+}
+
+/* Grid sections size their single column to the container, never to the
+   widest child (the 12-bar chart would otherwise push past the gutter). */
+.ledger-main section { grid-template-columns: minmax(0, 1fr) }

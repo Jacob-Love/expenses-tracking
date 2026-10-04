@@ -1,0 +1,51 @@
+/* Spectra spacing + layout.
+   The marketing page is built on section rhythm (160px chapters); the app
+   is built on a 4px step with 3/6px density inside tables. */
+:root {
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-26: 104px;
+  --space-40: 160px;
+
+  /* Marketing layout */
+  --container: 1280px;
+  --container-wide: 1440px;
+  --gutter: 24px;
+  --header-h: 76px;
+  --header-h-sm: 68px;
+  --section-y: 160px;    /* chapter padding — one idea per viewport */
+  --section-y-2: 104px;  /* dense chapter */
+
+  /* App layout */
+  --app-max: 1400px;
+  --sidebar-w: 375px;
+  --sidebar-w-md: 280px;
+  --sidebar-w-collapsed: 68px;
+  --app-page-pad: 24px;
+  --app-page-pad-sm: 12px;
+  --card-pad: 16px;
+  --card-pad-lg: 24px;
+
+  /* Touch */
+  --hit-min: 44px;
+}
+
+@media (max-width: 900px) {
+  :root { --section-y: 96px; --section-y-2: 64px; --gutter: 20px }
+}
+
+.wrap { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter) }
+.wrap-wide { max-width: var(--container-wide); margin-inline: auto; padding-inline: var(--gutter) }
+.section { padding-block: var(--section-y) }
+.section-d { padding-block: var(--section-y-2) }
+.hair { border-top: 1px solid var(--line) }
