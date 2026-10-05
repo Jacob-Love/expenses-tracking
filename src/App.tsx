@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Activity, CreditCard, LayoutDashboard, PanelLeft, PanelLeftClose, Plus, Settings2, Sparkles, TrendingUp, X, Zap } from 'lucide-react';
+import { Activity, CreditCard, Download, LayoutDashboard, PanelLeft, PanelLeftClose, Plus, Settings2, Sparkles, TrendingUp, X, Zap } from 'lucide-react';
 import { Button, SidebarNavItem } from './components/ds.tsx';
-import { h2 } from './components/ui.tsx';
+import { PeriodPicker, h2 } from './components/ui.tsx';
+import { download, exportName, pnlCsv, transactionsCsv } from './lib/export.ts';
 import { aiAvailable, aiClassify, aiModel, aiReport, browserKey, loadAiStatus, setBrowserKey, type AiStatus } from './lib/ai.ts';
-import { CAD_LABEL, CAD_SUFFIX, EXP_CATS, REV_CATS, iso, metrics, money, money2, dateLabel, findKnown, parseCommand, setStatus, statusOf, isSampleEntry, knownNames, normName, parseDate, parseQuick, statedCadence, reportFacts, suggestNames, uid, type Entry, type Kind } from './lib/ledger.ts';
+import { CAD_LABEL, CAD_SUFFIX, EXP_CATS, REV_CATS, iso, metrics, money, money2, dateLabel, periodFor, type PeriodKey, findKnown, parseCommand, setStatus, statusOf, isSampleEntry, knownNames, normName, parseDate, parseQuick, statedCadence, reportFacts, suggestNames, uid, type Entry, type Kind } from './lib/ledger.ts';
 import { KEYS, store } from './lib/storage.ts';
 import { Expenses, type ExpenseFilters } from './views/Expenses.tsx';
 import { EntryModal, SettingsModal, blankForm, formFrom, type FormState } from './views/Modals.tsx';
@@ -58,6 +59,9 @@ export default function App() {
   const [hasBrowserKey, setHasBrowserKey] = useState(() => !!browserKey());
   const [expFilters, setExpFilters] = useState<ExpenseFilters>({ cat: 'All', cad: 'All', search: '' });
   const [revFilter, setRevFilter] = useState('All');
+  const [exportOpen, setExportOpen] = useState(false);
+  const [periodKey, setPeriodKey] = useState<PeriodKey>(() => (store.get(KEYS.period) as PeriodKey) || 'month');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string }>(() => store.json(KEYS.periodCustom) || { from: '', to: '' });
   const [quick, setQuick] = useState('');
   const [quickAI, setQuickAI] = useState<AiGuess>(null);
   const [aiBusy, setAiBusy] = useState(false);
@@ -80,6 +84,12 @@ export default function App() {
   }, []);
 
   const m = useMemo(() => metrics(entries), [entries]);
+  const period = useMemo(() => periodFor(periodKey, entries, new Date(), customRange), [periodKey, entries, customRange]);
+  const changePeriod = (key: PeriodKey, custom?: { from: string; to: string }) => {
+    setPeriodKey(key);
+    store.set(KEYS.period, key);
+    if (custom) { setCustomRange(custom); store.set(KEYS.periodCustom, JSON.stringify(custom)); }
+  };
 
   const save = useCallback((next: Entry[]) => { setEntries(next); store.set(KEYS.entries, JSON.stringify(next)); }, []);
   const flash = useCallback((msg: string) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = window.setTimeout(() => setToast(''), 2600); }, []);
@@ -229,7 +239,7 @@ export default function App() {
 
   const toggleSidebar = () => { store.set(KEYS.sidebar, collapsed ? '0' : '1'); setCollapsed(!collapsed); };
   const netRun = m.mrr - m.burn;
-  const subtitle: Record<Page, string> = { overview: 'this month', expenses: `${entries.filter((e) => e.kind === 'expense').length} logged`, subs: `${m.activeSubs.length} active`, revenue: `${entries.filter((e) => e.kind === 'revenue').length} entries` };
+  const subtitle: Record<Page, string> = { overview: period.label, expenses: `${entries.filter((e) => e.kind === 'expense').length} logged`, subs: `${m.activeSubs.length} active`, revenue: `${entries.filter((e) => e.kind === 'revenue').length} entries` };
   const modelStatus = hasBrowserKey ? `Gemini · ${ai.model}` : ai.server ? `Gemini · ${ai.model} (server)` : 'No model — categorizing by rules';
   const modelColor = hasBrowserKey || ai.server ? 'var(--ok)' : 'var(--warn)';
   const nav: [Page, string, typeof LayoutDashboard][] = [['overview', 'Overview', LayoutDashboard], ['expenses', 'Expenses', CreditCard], ['subs', 'Subscriptions', Activity], ['revenue', 'Revenue', TrendingUp]];
@@ -290,6 +300,24 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button variant="ghost" icon={<Sparkles size={14} />} onClick={makeReport} disabled={report.busy}>{report.busy ? 'Writing…' : 'Monthly report'}</Button>
+              <span style={{ position: 'relative' }}>
+                <Button variant="ghost" icon={<Download size={14} />} onClick={() => setExportOpen((o) => !o)} aria-expanded={exportOpen} aria-haspopup="menu">Export</Button>
+                {exportOpen && (
+                  <>
+                    <div onClick={() => setExportOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
+                    <div role="menu" className="fade-up-fast" style={{ position: 'absolute', right: 0, top: 42, zIndex: 21, width: 260, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'var(--surface-3)', boxShadow: '0 16px 40px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.05)', padding: 4, display: 'grid' }}>
+                      <div style={{ padding: '6px 10px 4px', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#4B5563', fontWeight: 600 }}>CSV · {period.label}</div>
+                      {([['P&L statement', 'Monthly totals, categories, net profit', () => download(exportName('pnl', period), pnlCsv(entries, period))], ['Transactions', 'Every charge and payment in the range', () => download(exportName('transactions', period), transactionsCsv(entries, period))]] as const).map(([label, hint, run]) => (
+                        <button key={label} type="button" role="menuitem" className="row-hover" onClick={() => { run(); setExportOpen(false); flash(`Downloaded ${label.toLowerCase()} · ${period.label}`); }} style={{ display: 'grid', gap: 2, textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 0, background: 'transparent', cursor: 'pointer', font: 'inherit' }}>
+                          <span style={{ color: '#F3F4F6', fontSize: 14 }}>{label}</span>
+                          <span style={{ color: '#6B7280', fontSize: 12 }}>{hint}</span>
+                        </button>
+                      ))}
+                      {page === 'subs' && <div style={{ padding: '6px 10px', fontSize: 12, color: '#6B7280' }}>Uses the date range set on the other pages.</div>}
+                    </div>
+                  </>
+                )}
+              </span>
               <Button variant="ghost" icon={<Plus size={16} />} onClick={() => setModal(blankForm())}>Full form</Button>
             </div>
           </header>
@@ -354,10 +382,11 @@ export default function App() {
             </div>
           </div>
 
-          {page === 'overview' && <Overview entries={entries} m={m} onEdit={openEdit} />}
-          {page === 'expenses' && <Expenses entries={entries} m={m} cats={cats('expense')} filters={expFilters} setFilters={(f) => setExpFilters((s) => ({ ...s, ...f }))} onEdit={openEdit} onRemove={remove} />}
+          {page !== 'subs' && <PeriodPicker period={period} custom={customRange} onChange={changePeriod} />}
+          {page === 'overview' && <Overview entries={entries} m={m} period={period} onEdit={openEdit} />}
+          {page === 'expenses' && <Expenses entries={entries} period={period} cats={cats('expense')} filters={expFilters} setFilters={(f) => setExpFilters((s) => ({ ...s, ...f }))} onEdit={openEdit} onRemove={remove} />}
           {page === 'subs' && <Subscriptions m={m} onEdit={openEdit} onRemove={remove} onStatus={changeStatus} />}
-          {page === 'revenue' && <Revenue entries={entries} m={m} filter={revFilter} setFilter={setRevFilter} onEdit={openEdit} onRemove={remove} />}
+          {page === 'revenue' && <Revenue entries={entries} m={m} period={period} filter={revFilter} setFilter={setRevFilter} onEdit={openEdit} onRemove={remove} />}
         </div>
       </main>
 

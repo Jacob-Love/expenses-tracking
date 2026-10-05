@@ -49,8 +49,8 @@ function BreakdownRow({ label, value, color }: { label: string; value: string; c
   );
 }
 
-export function KpiCard({ label, value, changePercent = null, prevValue, invertColor = false, neutral = false, sparkData = [], breakdown, style }: {
-  label: string; value: ReactNode; changePercent?: number | null; prevValue?: string; invertColor?: boolean; neutral?: boolean; sparkData?: number[]; breakdown?: Breakdown; style?: CSSProperties;
+export function KpiCard({ label, value, changePercent = null, prevValue, note, invertColor = false, neutral = false, sparkData = [], breakdown, style }: {
+  label: string; value: ReactNode; changePercent?: number | null; prevValue?: string; /** Subtext shown as-is (prevValue gets a "from" prefix). */ note?: string; invertColor?: boolean; neutral?: boolean; sparkData?: number[]; breakdown?: Breakdown; style?: CSSProperties;
 }) {
   return (
     <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: 'var(--app-r-xl)', border: '1px solid rgba(255,255,255,0.06)', background: 'var(--surface-2)', backgroundImage: 'radial-gradient(130% 130% at 0% 0%, rgba(255,255,255,0.05), transparent 55%)', boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.05)', padding: 16, ...style }}>
@@ -62,6 +62,7 @@ export function KpiCard({ label, value, changePercent = null, prevValue, invertC
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 28, lineHeight: '34px', letterSpacing: '-0.02em', fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
           {prevValue && <span style={{ fontSize: 11, color: '#4B5563' }}>from {prevValue}</span>}
+          {!prevValue && note && <span style={{ fontSize: 11, color: '#4B5563' }}>{note}</span>}
         </div>
         <Sparkline data={sparkData} changePercent={changePercent} />
       </div>
