@@ -252,6 +252,99 @@ export const isSampleEntry = (e: Pick<Entry, 'name' | 'amount'>) => SAMPLE_KEYS.
 export interface MonthPoint { label: string; rev: number; exp: number; year: number; month: number }
 export interface Renewal extends Entry { next: Date; days: number; nextIso: string; /** Charges inside the 30-day window (weekly entries hit 4–5 times). */ count: number }
 
+// ── Charges ─────────────────────────────────────────────────────────────────
+// A ledger entry is a one-off or a recurring plan; a charge is one payment on
+// one day. Lists, totals and the P&L are built from charges, so a monthly
+// subscription shows up in every month it billed, not only its start month.
+
+export interface Charge { key: string; entry: Entry; date: string; amount: number }
+
+const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const plusDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+
+export function chargesIn(entries: Entry[], from: Date, to: Date): Charge[] {
+  const lo = day(from), hi = day(to);
+  const out: Charge[] = [];
+  const push = (e: Entry, d: Date) => { if (d >= lo && d <= hi && (e.cadence === 'once' || isBilling(e, d))) out.push({ key: `${e.id}:${iso(d)}`, entry: e, date: iso(d), amount: e.amount }); };
+  for (const e of entries) {
+    const start = parse(e.date);
+    if (e.cadence === 'once') { push(e, start); continue; }
+    if (start > hi) continue;
+    if (e.cadence === 'weekly') {
+      const skip = Math.max(0, Math.ceil((lo.getTime() - start.getTime()) / (7 * 86400000)));
+      for (let d = plusDays(start, skip * 7); d <= hi; d = plusDays(d, 7)) push(e, d);
+      continue;
+    }
+    const step = e.cadence === 'annual' ? 12 : 1;
+    const monthsIn = Math.max(0, (lo.getFullYear() - start.getFullYear()) * 12 + lo.getMonth() - start.getMonth());
+    for (let k = Math.floor(monthsIn / step) * step; ; k += step) {
+      const d = addMonths(start, k);
+      if (d > hi) break;
+      push(e, d);
+    }
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date) || a.entry.name.localeCompare(b.entry.name));
+}
+
+export const sumCharges = (cs: Charge[], kind?: Kind) => cs.filter((c) => !kind || c.entry.kind === kind).reduce((a, c) => a + c.amount, 0);
+
+export function byCategory(cs: Charge[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const c of cs) out[c.entry.category] = (out[c.entry.category] || 0) + c.amount;
+  return out;
+}
+
+/** Monthly revenue/expense totals from `from`'s month through `to`, cash basis. */
+export function monthBuckets(entries: Entry[], from: Date, to: Date): MonthPoint[] {
+  const out: MonthPoint[] = [];
+  for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const cs = chargesIn(entries, d < from ? from : d, end > to ? to : end);
+    out.push({ label: MON[d.getMonth()], rev: sumCharges(cs, 'revenue'), exp: sumCharges(cs, 'expense'), year: d.getFullYear(), month: d.getMonth() });
+  }
+  return out;
+}
+
+// ── Periods ─────────────────────────────────────────────────────────────────
+
+export type PeriodKey = 'month' | 'lastMonth' | '3m' | 'ytd' | '12m' | 'all' | 'custom';
+export const PERIOD_LABEL: Record<PeriodKey, string> = { month: 'This month', lastMonth: 'Last month', '3m': '3 months', ytd: 'This year', '12m': '12 months', all: 'All time', custom: 'Custom' };
+
+export interface Period { key: PeriodKey; from: Date; to: Date; label: string; prev: { from: Date; to: Date } | null }
+
+const shiftMonths = (d: Date, n: number) => addMonths(d, n);
+const fmtRange = (a: Date, b: Date) => (a.getFullYear() === b.getFullYear() ? `${MON[a.getMonth()]} ${a.getDate()} – ${MON[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()}` : `${MON[a.getMonth()]} ${a.getDate()}, ${a.getFullYear()} – ${MON[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()}`);
+
+export function periodFor(key: PeriodKey, entries: Entry[], now = new Date(), custom?: { from: string; to: string }): Period {
+  const t = day(now), y = t.getFullYear(), m = t.getMonth();
+  const calendar = (from: Date, to: Date, months: number, label: string): Period => ({ key, from, to, label, prev: { from: shiftMonths(from, -months), to: shiftMonths(to, -months) } });
+  switch (key) {
+    case 'month': return calendar(new Date(y, m, 1), t, 1, `${MON[m]} ${y}`);
+    case 'lastMonth': { const f = new Date(y, m - 1, 1); return calendar(f, new Date(y, m, 0), 1, `${MON[f.getMonth()]} ${f.getFullYear()}`); }
+    case '3m': return calendar(new Date(y, m - 2, 1), t, 3, fmtRange(new Date(y, m - 2, 1), t));
+    case 'ytd': return { key, from: new Date(y, 0, 1), to: t, label: `${y} to date`, prev: { from: new Date(y - 1, 0, 1), to: shiftMonths(t, -12) } };
+    case '12m': return calendar(new Date(y, m - 11, 1), t, 12, fmtRange(new Date(y, m - 11, 1), t));
+    case 'all': {
+      const first = entries.reduce((a, e) => (e.date < a ? e.date : a), iso(t));
+      const f = parse(first);
+      return { key, from: f > t ? t : f, to: t, label: 'All time', prev: null };
+    }
+    case 'custom': {
+      let f = custom?.from ? parse(custom.from) : new Date(y, m, 1), to = custom?.to ? parse(custom.to) : t;
+      if (f > to) [f, to] = [to, f];
+      const len = Math.round((to.getTime() - f.getTime()) / 86400000) + 1;
+      return { key, from: f, to, label: fmtRange(f, to), prev: { from: plusDays(f, -len), to: plusDays(f, -1) } };
+    }
+  }
+}
+
+/** The comparison range, or null when it starts before the first entry (a % change against missing data is noise). */
+export function comparable(period: Period, entries: Entry[]): { from: Date; to: Date } | null {
+  if (!period.prev || !entries.length) return null;
+  const first = entries.reduce((a, e) => (e.date < a ? e.date : a), entries[0].date);
+  return period.prev.from >= parse(first) ? period.prev : null;
+}
+
 export function metrics(entries: Entry[], now = new Date()) {
   const y = now.getFullYear(), mo = now.getMonth();
   const today = new Date(y, mo, now.getDate());
@@ -260,38 +353,11 @@ export function metrics(entries: Entry[], now = new Date()) {
   const committed = (e: Entry, at: Date) => (parse(e.date) > at ? at.getTime() === today.getTime() && statusOf(e, today) === 'active' : isBilling(e, at));
   const sumRec = (kind: Kind, at: Date) => entries.filter((e) => e.kind === kind && e.cadence !== 'once' && committed(e, at)).reduce((a, e) => a + monthly(e), 0);
   const endOfMonth = (off: number) => new Date(y, mo + off + 1, 0);
-  // What an entry contributes to a calendar month. One-offs land in their
-  // month. Monthly and weekly entries count each actual charge date that falls
-  // in the month and isn't paused or cancelled; annual is spread /12.
-  const valueInMonth = (e: Entry, yy: number, mm: number) => {
-    const start = parse(e.date), last = new Date(yy, mm + 1, 0);
-    if (e.cadence === 'once') return start.getFullYear() === yy && start.getMonth() === mm ? e.amount : 0;
-    if (start > last) return 0;
-    if (e.cadence === 'monthly') {
-      const day = new Date(yy, mm, Math.min(start.getDate(), last.getDate()));
-      return day >= start && isBilling(e, day) ? e.amount : 0;
-    }
-    if (e.cadence === 'weekly') {
-      const first = new Date(yy, mm, 1);
-      const skip = Math.max(0, Math.ceil((first.getTime() - start.getTime()) / (7 * 86400000)));
-      let total = 0;
-      for (let d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + skip * 7); d <= last; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7)) if (isBilling(e, d)) total += e.amount;
-      return total;
-    }
-    return isBilling(e, last) ? e.amount / 12 : 0;
-  };
-  const series: MonthPoint[] = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(y, mo - i, 1);
-    const sum = (kind: Kind) => entries.filter((e) => e.kind === kind).reduce((a, e) => a + valueInMonth(e, d.getFullYear(), d.getMonth()), 0);
-    series.push({ label: MON[d.getMonth()], rev: sum('revenue'), exp: sum('expense'), year: d.getFullYear(), month: d.getMonth() });
-  }
+  // Cash basis: each month counts the charges that actually happened in it,
+  // through today. Run-rate figures above stay monthly equivalents.
+  const series: MonthPoint[] = monthBuckets(entries, new Date(y, mo - 11, 1), today);
   const cur = series[11], prev = series[10];
-  const catMonth: Record<string, number> = {};
-  entries.filter((e) => e.kind === 'expense').forEach((e) => {
-    const v = valueInMonth(e, y, mo);
-    if (v) catMonth[e.category] = (catMonth[e.category] || 0) + v;
-  });
+  const catMonth = byCategory(chargesIn(entries.filter((e) => e.kind === 'expense'), new Date(y, mo, 1), today));
   const subs = entries.filter((e) => e.kind === 'expense' && e.cadence !== 'once');
   const activeSubs = subs.filter((e) => statusOf(e, today) === 'active');
   const pausedSubs = subs.filter((e) => statusOf(e, today) === 'paused');

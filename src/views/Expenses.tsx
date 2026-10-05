@@ -1,27 +1,31 @@
 import { CreditCard, Search } from 'lucide-react';
 import { EmptyState, KpiCard } from '../components/ds.tsx';
-import { Chip, LedgerTable, TableFooter, cardFlat } from '../components/ui.tsx';
-import { money, money2, pct, type Entry, type Metrics } from '../lib/ledger.ts';
+import { ChargeTable, Chip, TableFooter, cardFlat } from '../components/ui.tsx';
+import { byCategory, chargesIn, comparable, money, money2, monthBuckets, pct, sumCharges, type Entry, type Period } from '../lib/ledger.ts';
 
 export interface ExpenseFilters { cat: string; cad: string; search: string }
 
-export function Expenses({ entries, m, cats, filters, setFilters, onEdit, onRemove }: {
-  entries: Entry[]; m: Metrics; cats: string[]; filters: ExpenseFilters; setFilters: (f: Partial<ExpenseFilters>) => void; onEdit: (e: Entry) => void; onRemove: (id: string) => void;
+export function Expenses({ entries, period, cats, filters, setFilters, onEdit, onRemove }: {
+  entries: Entry[]; period: Period; cats: string[]; filters: ExpenseFilters; setFilters: (f: Partial<ExpenseFilters>) => void; onEdit: (e: Entry) => void; onRemove: (id: string) => void;
 }) {
   const q = filters.search.trim().toLowerCase();
-  const all = entries.filter((e) => e.kind === 'expense');
-  const rows = all
-    .filter((e) => (filters.cat === 'All' || e.category === filters.cat) && (filters.cad === 'All' || (filters.cad === 'Recurring' ? e.cadence !== 'once' : e.cadence === 'once')) && (!q || e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)))
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const top = Object.entries(m.catMonth).sort((a, b) => b[1] - a[1])[0];
-  const ser = m.series, year = m.today.getFullYear();
+  const expenses = entries.filter((e) => e.kind === 'expense');
+  const all = chargesIn(expenses, period.from, period.to);
+  const rows = all.filter(({ entry: e }) => (filters.cat === 'All' || e.category === filters.cat) && (filters.cad === 'All' || (filters.cad === 'Recurring' ? e.cadence !== 'once' : e.cadence === 'once')) && (!q || e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)));
+  const spent = sumCharges(all);
+  const cmp = comparable(period, entries);
+  const prevSpent = cmp ? sumCharges(chargesIn(expenses, cmp.from, cmp.to)) : null;
+  const recurring = sumCharges(all.filter((c) => c.entry.cadence !== 'once'));
+  const top = Object.entries(byCategory(all)).sort((a, b) => b[1] - a[1])[0];
+  const spark = monthBuckets(expenses, period.from, period.to).map((s) => s.exp);
+  const filtered = filters.cat !== 'All' || filters.cad !== 'All' || !!q;
 
   return (
     <section data-screen-label="Expenses" className="fade-up" style={{ display: 'grid', gap: 16 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-        <KpiCard label="Spent this month" value={money(m.expMonth)} changePercent={pct(m.expMonth, m.expPrevMonth)} prevValue={money(m.expPrevMonth)} invertColor sparkData={ser.map((s) => s.exp)} />
-        <KpiCard label="Spent this year" value={money(m.yearExp)} sparkData={ser.filter((s) => s.year === year).map((s) => s.exp)} />
-        <KpiCard label="Largest category" value={top ? top[0] : '—'} prevValue={top && m.expMonth ? `${Math.round((top[1] / m.expMonth) * 100)}% of this month` : ''} />
+        <KpiCard label={`Spent · ${period.label}`} value={money(spent)} changePercent={prevSpent === null ? null : pct(spent, prevSpent)} prevValue={prevSpent === null ? undefined : money(prevSpent)} invertColor sparkData={spark.length > 1 ? spark : []} />
+        <KpiCard label="Recurring" value={money(recurring)} note={spent ? `${Math.round((recurring / spent) * 100)}% of spend · ${money(spent - recurring)} one-time` : ''} />
+        <KpiCard label="Largest category" value={top ? top[0] : '—'} note={top && spent ? `${money(top[1])} · ${Math.round((top[1] / spent) * 100)}% of spend` : ''} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -37,9 +41,9 @@ export function Expenses({ entries, m, cats, filters, setFilters, onEdit, onRemo
 
       <div style={cardFlat}>
         <div style={{ overflowX: 'auto' }}>
-          <LedgerTable head="Name" rows={rows} onEdit={onEdit} onRemove={onRemove} empty={<EmptyState icon={<CreditCard size={20} />} title="No expenses match" hint="Clear a filter, or add a one-time charge or subscription with Add entry." />} />
+          <ChargeTable head="Name" rows={rows} onEdit={onEdit} onRemove={onRemove} empty={<EmptyState icon={<CreditCard size={20} />} title={filtered ? 'No expenses match' : `Nothing went out · ${period.label}`} hint={filtered ? 'Clear a filter or pick a wider date range.' : 'Pick a wider date range, or log a charge in the bar above.'} />} />
           <div style={{ minWidth: 700 }}>
-            <TableFooter count={`${rows.length} of ${all.length}`} total={money2(rows.reduce((a, e) => a + e.amount, 0))} />
+            <TableFooter count={`${rows.length} ${rows.length === 1 ? 'charge' : 'charges'}${filtered ? ` of ${all.length}` : ''} · ${period.label}`} total={money2(sumCharges(rows))} />
           </div>
         </div>
       </div>

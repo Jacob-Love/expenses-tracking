@@ -17,9 +17,9 @@ export function Subscriptions({ m, onEdit, onRemove, onStatus }: { m: Metrics; o
   return (
     <section data-screen-label="Subscriptions" className="fade-up" style={{ display: 'grid', gap: 16 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-        <KpiCard label="Monthly commitment" value={money(m.burn)} prevValue={`${money(m.burn * 12)} / yr`} breakdown={{ aLabel: m.activeSubs.some((e) => e.cadence === 'weekly') ? 'Weekly + monthly' : 'Monthly plans', aValue: money(sumPlans(['weekly', 'monthly'])), bLabel: 'Annual plans', bValue: money(sumPlans(['annual']) * 12) + ' / yr' }} />
-        <KpiCard label="Active" value={String(m.activeSubs.length)} prevValue={`${m.pausedSubs.length} paused · ${cancelled.length} cancelled`} />
-        <KpiCard label="Next 30 days" value={money(next30.reduce((a, r) => a + r.amount * r.count, 0))} prevValue={`${next30.reduce((a, r) => a + r.count, 0)} charges`} />
+        <KpiCard label="Monthly commitment" value={money(m.burn)} note={`${money(m.burn * 12)} / yr`} breakdown={{ aLabel: m.activeSubs.some((e) => e.cadence === 'weekly') ? 'Weekly + monthly' : 'Monthly plans', aValue: money(sumPlans(['weekly', 'monthly'])), bLabel: 'Annual plans', bValue: money(sumPlans(['annual']) * 12) + ' / yr' }} />
+        <KpiCard label="Active" value={String(m.activeSubs.length)} note={`${m.pausedSubs.length} paused · ${cancelled.length} cancelled`} />
+        <KpiCard label="Next 30 days" value={money(next30.reduce((a, r) => a + r.amount * r.count, 0))} note={`${next30.reduce((a, r) => a + r.count, 0)} charges`} />
       </div>
 
       {subs.length > 0 ? (

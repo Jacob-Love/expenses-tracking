@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, findKnown, parseCommand, parseDate, setStatus, statedCadence, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
+import { addMonths, chargesIn, findKnown, periodFor, parseCommand, parseDate, setStatus, statedCadence, isSampleEntry, iso, metrics, parseQuick, seed, suggestNames, type Entry } from './ledger.ts';
 
 describe('parseQuick', () => {
   it('reads a monthly software subscription', () => {
@@ -52,9 +52,11 @@ describe('metrics', () => {
       e({ cadence: 'annual', amount: 1200, date: '2026-03-10' }),
       e({ kind: 'revenue', category: 'Retainer', cadence: 'monthly', amount: 1000, date: '2026-02-01' }),
     ], now);
-    expect(m.burn).toBe(150);
+    expect(m.burn).toBe(150); // run rate: 50 + 1200/12
     expect(m.mrr).toBe(1000);
-    expect(m.expMonth).toBe(150);
+    expect(m.expMonth).toBe(0); // cash: Oct 5 hasn't happened on Oct 3
+    expect(m.expPrevMonth).toBe(50); // Sep 5
+    expect(m.series[4].exp).toBe(1250); // Mar: monthly 50 + annual 1200 charged in full
   });
 
   it('drops paused entries from the run rate', () => {
@@ -151,7 +153,7 @@ describe('run rate, weekly, pause and cancel', () => {
   it('counts subscriptions dated at their next renewal in the run rate', () => {
     const m = metrics([sub({ amount: 375, date: '2026-10-22' }), sub({ amount: 15, date: '2026-10-04' })], now);
     expect(m.burn).toBe(390);
-    expect(m.expMonth).toBe(390);
+    expect(m.expMonth).toBe(15); // only Frame.io has charged so far
   });
 
   it('weekly is 52/12 per month in the run rate and real charges in the chart', () => {
@@ -173,8 +175,8 @@ describe('run rate, weekly, pause and cancel', () => {
     expect(m.pausedSubs).toHaveLength(1);
     e = setStatus(e, 'resume', '2026-09-15');
     m = metrics([e], now);
-    expect(m.series[9].exp).toBe(0); // Sep 10 fell inside the pause
-    expect(m.series[11].exp).toBe(100); // Oct 10 billed again
+    expect(m.series[10].exp).toBe(0); // Sep 10 fell inside the pause
+    expect(chargesIn([e], new Date(2026, 9, 1), new Date(2026, 9, 31)).map((c) => c.date)).toEqual(['2026-10-10']); // billing again
     expect(m.burn).toBe(100);
   });
 
@@ -197,5 +199,49 @@ describe('run rate, weekly, pause and cancel', () => {
     expect(parseCommand('cancelled frame.io on oct 1', list, now)?.date).toBe('2026-10-01');
     expect(parseCommand('Frame.io 15/mo', list, now)).toBeNull();
     expect(parseCommand('Stop sign install 400', list, now)?.entry).toBeNull();
+  });
+});
+
+describe('charges and periods', () => {
+  const now = new Date(2026, 9, 5);
+  const e = (p: Partial<Entry>): Entry => ({ id: Math.random().toString(36), kind: 'expense', name: 'x', amount: 15, category: 'Software', cadence: 'monthly', date: '2026-07-04', active: true, ...p });
+
+  it('lists each payment of a subscription in the range', () => {
+    const cs = chargesIn([e({ name: 'Frame.io' })], new Date(2026, 6, 1), new Date(2026, 8, 30));
+    expect(cs.map((c) => c.date)).toEqual(['2026-09-04', '2026-08-04', '2026-07-04']);
+    expect(chargesIn([e({ cadence: 'annual', amount: 1188, date: '2025-03-10' })], new Date(2026, 0, 1), now).map((c) => c.date)).toEqual(['2026-03-10']);
+    expect(chargesIn([e({ cadence: 'once', date: '2026-08-20' })], new Date(2026, 8, 1), now)).toHaveLength(0);
+  });
+
+  it('builds periods with a comparison range', () => {
+    const p = periodFor('month', [], now);
+    expect([p.from, p.to, p.prev!.from, p.prev!.to].map((d) => d.toDateString())).toEqual(['Thu Oct 01 2026', 'Mon Oct 05 2026', 'Tue Sep 01 2026', 'Sat Sep 05 2026']);
+    expect(periodFor('lastMonth', [], now).to.toDateString()).toBe('Wed Sep 30 2026');
+    expect(periodFor('ytd', [], now).prev!.from.toDateString()).toBe('Wed Jan 01 2025');
+    expect(periodFor('all', [e({ date: '2025-02-01' })], now).from.toDateString()).toBe('Sat Feb 01 2025');
+    const c = periodFor('custom', [], now, { from: '2026-09-10', to: '2026-09-19' });
+    expect([c.prev!.from.toDateString(), c.prev!.to.toDateString()]).toEqual(['Mon Aug 31 2026', 'Wed Sep 09 2026']);
+  });
+});
+
+describe('csv export', async () => {
+  const { pnlCsv, transactionsCsv } = await import('./export.ts');
+  const now = new Date(2026, 9, 5);
+  const list: Entry[] = [
+    { id: 'a', kind: 'expense', name: 'Frame.io', amount: 15, category: 'Software', cadence: 'monthly', date: '2026-08-04', active: true },
+    { id: 'b', kind: 'revenue', name: '=HYPERLINK("x")', amount: 4000, category: 'Retainer', cadence: 'once', date: '2026-09-12', active: true },
+  ];
+  const p = periodFor('3m', list, now);
+  it('writes a P&L with monthly rows, categories and net', () => {
+    const csv = pnlCsv(list, p, now);
+    expect(csv).toContain('"Aug 2026",0.00,15.00,-15.00');
+    expect(csv).toContain('"Sep 2026",4000.00,15.00,3985.00');
+    expect(csv).toContain('"Total",4000.00,45.00,3955.00');
+    expect(csv).toContain('"Net profit",3955.00');
+  });
+  it('writes one row per charge and defuses formulas', () => {
+    const csv = transactionsCsv(list, p);
+    expect(csv.split('\r\n').filter(Boolean)).toHaveLength(5); // header + 3 Frame.io + 1 payment
+    expect(csv).toContain(`"'=HYPERLINK(""x"")"`);
   });
 });
